@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build ignore
 // +build ignore
 
 // Genarsc generates stripped down version of android.jar resources used
@@ -9,15 +10,15 @@
 //
 // Requires ANDROID_HOME be set to the path of the Android SDK and the
 // current sdk platform installed that matches MinSDK.
-package binres
+package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 
-	"github.com/fyne-io/mobile/internal/binres"
+	"fyne.io/fyne/v2/cmd/fyne/internal/mobile/binres"
 )
 
 const tmpl = `// Copyright 2016 The Go Authors.  All rights reserved.
@@ -35,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := ioutil.WriteFile("arsc.go", []byte(fmt.Sprintf(tmpl, strconv.Quote(string(arsc)))), 0644); err != nil {
+	if err := os.WriteFile("arsc.go", []byte(fmt.Sprintf(tmpl, strconv.Quote(string(arsc)))), 0644); err != nil {
 		log.Fatal(err)
 	}
 }

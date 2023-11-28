@@ -2,7 +2,6 @@ package repository
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -173,7 +172,7 @@ func (r *FileRepository) Parent(u fyne.URI) (fyne.URI, error) {
 	s = strings.TrimPrefix(s, fileSchemePrefix)
 
 	// Completely empty URI with just a scheme
-	if len(s) == 0 {
+	if s == "" {
 		return nil, repository.ErrURIRoot
 	}
 
@@ -216,7 +215,7 @@ func (r *FileRepository) Child(u fyne.URI, component string) (fyne.URI, error) {
 func (r *FileRepository) List(u fyne.URI) ([]fyne.URI, error) {
 
 	path := u.Path()
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}

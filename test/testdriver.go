@@ -2,7 +2,6 @@ package test
 
 import (
 	"image"
-	"log"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -11,9 +10,6 @@ import (
 	"fyne.io/fyne/v2/internal/painter/software"
 	intRepo "fyne.io/fyne/v2/internal/repository"
 	"fyne.io/fyne/v2/storage/repository"
-
-	"github.com/goki/freetype/truetype"
-	"golang.org/x/image/font"
 )
 
 // SoftwarePainter describes a simple type that can render canvases
@@ -33,8 +29,7 @@ var _ fyne.Driver = (*testDriver)(nil)
 
 // NewDriver sets up and registers a new dummy driver for test purpose
 func NewDriver() fyne.Driver {
-	drv := new(testDriver)
-	drv.windowsMutex = sync.RWMutex{}
+	drv := &testDriver{windowsMutex: sync.RWMutex{}}
 	repository.Register("file", intRepo.NewFileRepository())
 
 	// make a single dummy window for rendering tests
@@ -46,11 +41,10 @@ func NewDriver() fyne.Driver {
 // NewDriverWithPainter creates a new dummy driver that will pass the given
 // painter to all canvases created
 func NewDriverWithPainter(painter SoftwarePainter) fyne.Driver {
-	drv := new(testDriver)
-	drv.painter = painter
-	drv.windowsMutex = sync.RWMutex{}
-
-	return drv
+	return &testDriver{
+		painter:      painter,
+		windowsMutex: sync.RWMutex{},
+	}
 }
 
 func (d *testDriver) AbsolutePositionForObject(co fyne.CanvasObject) fyne.Position {
@@ -101,21 +95,8 @@ func (d *testDriver) Device() fyne.Device {
 }
 
 // RenderedTextSize looks up how bit a string would be if drawn on screen
-func (d *testDriver) RenderedTextSize(text string, size float32, style fyne.TextStyle) fyne.Size {
-	var opts truetype.Options
-	opts.Size = float64(size)
-	opts.DPI = painter.TextDPI
-
-	face := painter.CachedFontFace(style, &opts)
-	advance := font.MeasureString(face, text)
-
-	sws := fyne.NewSize(float32(advance.Ceil()), float32(face.Metrics().Height.Ceil()))
-	gls := painter.RenderedTextSize(text, size, style)
-	if sws != gls {
-		log.Println("SoftwareTextSize:", sws)
-		log.Println("GLTextSize:", gls)
-	}
-	return sws
+func (d *testDriver) RenderedTextSize(text string, size float32, style fyne.TextStyle) (fyne.Size, float32) {
+	return painter.RenderedTextSize(text, size, style)
 }
 
 func (d *testDriver) Run() {

@@ -39,6 +39,7 @@ func (i *menuBarItem) Child() *publicWidget.Menu {
 // Implements: fyne.Widget
 func (i *menuBarItem) CreateRenderer() fyne.WidgetRenderer {
 	background := canvas.NewRectangle(theme.HoverColor())
+	background.CornerRadius = theme.SelectionRadiusSize()
 	background.Hide()
 	text := canvas.NewText(i.Menu.Label, theme.ForegroundColor())
 	objects := []fyne.CanvasObject{background, text}
@@ -66,20 +67,6 @@ func (i *menuBarItem) FocusLost() {
 
 func (i *menuBarItem) Focused() bool {
 	return i.active
-}
-
-// Hide hides the menu bar item.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) Hide() {
-	widget.HideWidget(&i.Base, i)
-}
-
-// MinSize returns the minimal size of the menu bar item.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) MinSize() fyne.Size {
-	return widget.MinSizeOf(i)
 }
 
 // MouseIn activates the item and shows the menu if the bar is active.
@@ -119,34 +106,6 @@ func (i *menuBarItem) MouseMoved(_ *desktop.MouseEvent) {
 func (i *menuBarItem) MouseOut() {
 	i.hovered = false
 	i.Refresh()
-}
-
-// Move sets the position of the widget relative to its parent.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) Move(pos fyne.Position) {
-	widget.MoveWidget(&i.Base, i, pos)
-}
-
-// Refresh triggers a redraw of the menu bar item.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) Refresh() {
-	widget.RefreshWidget(i)
-}
-
-// Resize changes the size of the menu bar item.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) Resize(size fyne.Size) {
-	widget.ResizeWidget(&i.Base, i, size)
-}
-
-// Show makes the menu bar item visible.
-//
-// Implements: fyne.Widget
-func (i *menuBarItem) Show() {
-	widget.ShowWidget(&i.Base, i)
 }
 
 // Tapped toggles the activation state of the menu bar.
@@ -202,6 +161,7 @@ func (r *menuBarItemRenderer) MinSize() fyne.Size {
 }
 
 func (r *menuBarItemRenderer) Refresh() {
+	r.background.CornerRadius = theme.SelectionRadiusSize()
 	if r.i.active && r.i.Parent.active {
 		r.background.FillColor = theme.FocusColor()
 		r.background.Show()
@@ -216,5 +176,5 @@ func (r *menuBarItemRenderer) Refresh() {
 }
 
 func (r *menuBarItemRenderer) padding() fyne.Size {
-	return fyne.NewSize(theme.Padding()*4, theme.Padding()*2)
+	return fyne.NewSize(theme.InnerPadding()*2, theme.InnerPadding())
 }

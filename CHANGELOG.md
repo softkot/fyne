@@ -3,6 +3,567 @@
 This file lists the main changes with each version of the Fyne toolkit.
 More detailed release notes can be found on the [releases page](https://github.com/fyne-io/fyne/releases). 
 
+## 2.4.3 - Ongoing
+
+### Fixes
+
+* Fix OpenGL init for arm64 desktop devices 
+* System tray icon on Mac is showing the app ID (#4416)
+
+
+## 2.4.2 - 21 November 2023
+
+### Fixed
+
+* Markdown only shows one horizontal rule (#4216)
+* Spacer in HBox with hidden item will cause an additional trailing padding (#4259)
+* Application crash when fast clicking the folders inside the file dialog (#4260)
+* failed to initialise OpenGL (#437)
+* App panic when clicking on a notification panel if there's a systray icon (#4385)
+* Systray cannot be shown on Ubuntu (#3678, #4381)
+* failed to initialise OpenGL on Windows dual-chip graphics cards (#437)
+* Reduce memory allocations for each frame painted
+* RichText may not refresh if segments manually replaced
+* Correct URI.Extension() documentation
+* Update for security fixes to x/sys and x/net
+* Inconsistent rendering of Button widget (#4243)
+* PasswordEntry initial text is not obscured (#4312)
+* Pasting text in Entry does not update cursor position display (#4181)
+
+
+## 2.4.1 - 9 October 2023
+
+### Fixed
+
+* Left key on tree now collapses open branch
+* Avoid memory leak in Android driver code
+* Entry Field on Android in Landscape Mode Shows "0" (#4036)
+* DocTabs Indicator remains visible after last tab is removed (#4220)
+* Some SVG resources don't update appearance correctly with the theme (#3900)
+* Fix mobile simulation builds on OpenBSD
+* Fix alignment of menu button on mobile
+* Fix Compilation with Android NDK r26
+* Clicking table headers causes high CPU consumption (#4264)
+* Frequent clicking on table may cause the program to not respond (#4210)
+* Application stops responding when scrolling a table (#4263)
+* Possible crash parsing malformed JSON color (#4270)
+* NewFolderOpen: incomplete filenames (#2165)
+* Resolve issue where storage.List could crash with short URI (#4271)
+* TextTruncateEllipsis abnormally truncates strings with multi-byte UTF-8 characters (#4283)
+* Last character doesn't appear in Select when there is a special character (#4293)
+* Resolve random crash in DocTab (#3909)
+* Selecting items from a list caused the keyboard to popup on Android (#4236)
+
+
+## 2.4.0 - 1 September 2023
+
+### Added
+
+* Rounded corners in rectangle (#1090)
+* Support for emoji in text
+* Layout debugging (with `-tags debug` build flag) (#3314)
+* GridWrap collection widget
+* Add table headers (#1658, #3594)
+* Add mobile back button handling (#2910)
+* Add option to disable UI animations (#1813)
+* Text truncation ellipsis (#1659)
+* Add support for binding tree data, include new `NewTreeWithData`
+* Add support for OpenType fonts (#3245)
+* Add `Window.SetOnDropped` to handle window-wide item drop on desktop
+* Add lists to the types supported by preferences API
+* Keyboard focus handling for all collection widgets
+* Add APIs for refreshing individual items in collections (#3826)
+* Tapping slider moves it to that position (#3650)
+* Add `OnChangeEnded` callback to `Slider` (#3652)
+* Added keyboard controls to `Slider`
+* Add `NewWarningThemedResource` and `NewSuccessThemedResource` along with `NewColoredResource` (#4040)
+* Custom hyperlink callback for rich text hyperlinks (#3335)
+* Added `dialog.NewCustomWithoutButtons`, with a `SetButtons` method (#2127, #2782)
+* Added `SetConfirmImportance` to `dialog.ConfirmDialog`.
+* Added `FormDialog.Submit()` to close and submit the dialog if validation passes
+* Rich Text image alignment (#3810)
+* Bring back `theme.HyperlinkColor` (#3867)
+* Added `Importance` field on `Label` to color the text
+* Navigating in entry quickly with ctrl key (#2462)
+* Support `.desktop` file metadata in `FyneApp.toml` for Linux and BSD
+* Support mobile simulator on FreeBSD
+* Add data binding boolean operators `Not`, `And` and `Or`
+* Added `Entry.Append`, `Select.SetOptions`, `Check.SetText`, `FormDialog.Submit`
+* Add `ShowPopUpAtRelativePosition` and `PopUp.ShowAtRelativePosition`
+* Add desktop support to get key modifiers with `CurrentKeyModifiers`
+* Add geometry helpers `NewSquareSize` and `NewSquareOffsetPos`
+* Add `--pprof` option to fyne build commands to enable profiling
+* Support compiling from Android (termux)
+
+### Changed
+
+* Go 1.17 or later is now required.
+* Theme updated for rounded corners on buttons and input widgets
+* `widget.ButtonImportance` is now `widget.Importance`
+* The `Max` container and layout have been renamed `Stack` for clarity
+* Refreshing an image will now happen in app-thread not render process, apps may wish to add async image load
+* Icons for macOS bundles are now padded and rounded, disable with "-use-raw-icon" (#3752)
+* Update Android target SDK to 33 for Play Store releases
+* Focus handling for List/Tree/Table are now at the parent widget not child elements
+* Accordion widget now fills available space - put it inside a `VBox` container for old behavior (#4126)
+* Deprecated theme.FyneLogo() for later removal (#3296)
+* Improve look of menu shortcuts (#2722)
+* iOS and macOS packages now default to using "XCWildcard" provisioning profile
+* Improving performance of lookup for theme data
+* Improved application startup time
+
+### Fixed
+
+* Rendering performance enhancements
+* `dialog.NewProgressInfinite` is deprecated, but dialog.NewCustom isn't equivalent
+* Mouse cursor desync with Split handle when dragging (#3791)
+* Minor graphic glitch with checkbox (#3792)
+* binding.String===>Quick refresh *b.val will appear with new data reset by a call to OnChange (#3774)
+* Fyne window becomes unresponsive when in background for a while (#2791)
+* Hangs on repeated calls to `Select.SetSelected` in table. (#3684)
+* `Select` has wrong height, padding and border (#4142)
+* `widget.ImageSegment` can't be aligned. (#3505)
+* Memory leak in font metrics cache (#4108)
+* Don't panic when loading preferences with wrong type (#4039)
+* Button with icon has wrong padding on right (#4124)
+* Preferences don't all save when written in `CloseIntercept` (#3170)
+* Text size does not update in Refresh for TextGrid
+* DocTab selection underline not updated when deleting an Item (#3905)
+* Single line Entry throws away selected text on submission (#4026)
+* Significantly improve performance of large `TextGrid` and `Tree` widgets
+* `List.ScrollToBottom` not scrolling to show the totality of the last Item (#3829)
+* Setting `Position1` of canvas.Circle higher than `Position2` causes panic. (#3949)
+* Enhance scroll wheel/touchpad scroll speed on desktop (#3492)
+* Possible build issue on Windows with app metadata
+* `Form` hint text has confusing padding to next widget (#4137)
+* `Entry` Placeholder Style Only Applied On Click (#4035)
+* Backspace and Delete key Do not Fire OnChanged Event (#4117)
+* Fix `ProgressBar` text having the wrong color sometimes
+* Window doesn't render when called for the first time from system tray and the last window was closed (#4163)
+* Possible race condition in preference change listeners
+* Various vulnerabilities resolved through updating dependencies 
+* Wrong background for color dialog (#4199)
+
+
+## 2.3.5 - 6 June 2023
+
+### Fixed
+
+* Panic with unsupported font (#3646)
+* Temporary manifest file not closed after building on Windows
+* Panic when using autogenerated quit menu and having unshown windows (#3870)
+* Using `canvas.ImageScaleFastest` not working on arm64 (#3891)
+* Disabled password Entry should also disable the ActionItem (#3908)
+* Disabled RadioGroup does not display status (#3882)
+* Negative TableCellID Row (#2857)
+* Make sure we have sufficient space for the bar as well if content is tiny (#3898)
+* Leak in image painter when replacing image.Image source regularly
+* Links in Markdown/Rich Text lists breaks formatting (#2911)
+* Crash when reducing window to taskbar with popup opened (#3877)
+* RichText vertical scroll will truncate long content with horizontal lines (#3929)
+* Custom metadata would not apply with `fyne release` command
+* Horizontal CheckGroup overlap when having long text (#3005)
+* Fix focused colour of coloured buttons (#3462)
+* Menu separator not visible with light theme (#3814)
+
+
+## 2.3.4 - 3 May 2023
+
+### Fixed
+
+* Memory leak when switching theme (#3640)
+* Systray MenuItem separators not rendered in macOS root menu (#3759)
+* Systray leaks window handles on Windows (#3760)
+* RadioGroup miscalculates label widths in horizontal mode (#3386)
+* Start of selection in entry is shifted when moving too fast (#3804)
+* Performance issue in widget.List (#3816)
+* Moving canvas items (e.g. Images) does not cause canvas repaint (#2205)
+* Minor graphic glitch with checkbox (#3792)
+* VBox and HBox using heap memory that was not required
+* Menu hover is slow on long menus
+
+## 2.3.3 - 24 March 2023
+
+### Fixed
+
+* Linux, Windows and BSD builds could fail if gles was missing
+
+
+## 2.3.2 - 20 March 2023
+
+### Fixed
+
+* Fyne does not run perfectly on ARM-based MacOS platforms (#3639) *
+* Panic on closing window in form submit on Мac M2 (#3397) *
+* Wobbling slider effect for very small steps (#3648)
+* Fix memory leak in test canvas refresh
+* Optimise text texture memory by switching to single channel
+* Packaging an android fyne app that uses tags can fail (#3641)
+* NewAdaptiveGrid(0) blanks app window on start until first resize on Windows (#3669)
+* Unnecessary refresh when sliding Split container
+* Linux window resize refreshes all content
+* Themed and unthemed svg resources can cache collide
+* When packaging an ampersand in "Name" causes an error (#3195)
+* Svg in ThemedResource without viewBox does not match theme (#3714)
+* Missing menu icons in Windows system tray
+* Systray Menu Separators don't respect the submenu placement (#3642)
+* List row focus indicator disappears on scrolling (#3699)
+* List row focus not reset when row widget is reused to display a new item (#3700)
+* Avoid panic if accidental 5th nil is passed to Border container
+* Mobile simulator not compiling on Apple M1/2
+* Cropped letters in certain cases with the new v2.3.0 theme (#3500)
+
+Many thanks indeed to [Dymium](https://dymium.io) for sponsoring an Apple
+M2 device which allowed us to complete the marked (*) issues.
+
+
+## 2.3.1 - 13 February 2023
+
+### Changed
+
+* Pad app version to ensure Windows packages correctly (#3638)
+
+### Fixed
+
+* Custom shortcuts with fyne.KeyTab is not working (#3087)
+* Running a systray app with root privileges resulted in panic (#3120)
+* Markdown image with no title is not parsed (#3577)
+* Systray app on macOS panic when started while machine sleeps (#3609)
+* Runtime error with VNC on RaspbianOS (#2972)
+* Hovered background in List widget isn't reset when scrolling reuses an existing list item (#3584)
+* cmd/fyne package can't find FyneApp.toml when -src option has given (#3459)
+* TextWrapWord will cause crash in RichText unverified (#3498)
+* crash in widget.(*RichText).lineSizeToColumn (#3292)
+* Crash in widget.(*Entry).SelectedText (#3290)
+* Crash in widget.(*RichText).updateRowBounds.func1 (#3291)
+* window is max size at all times (#3507)
+* systray.Quit() is not called consistently when the app is closing (#3597)
+* Software rendering would ignore scale for text
+* crash when minimize a window which contains a stroked rectangle (#3552)
+* Menu item would not appear disabled initially
+* Wrong icon colour for danger and warning buttons
+* Embedding Fyne apps in iFrame alignment issue
+* Generated metadata can be in wrong directory
+* Android RootURI may not exist when used for storage (#3207)
+
+
+## 2.3.0 - 24 December 2022
+
+### Added
+
+* Shiny new theme that was designed for us
+* Improved text handling to support non-latin alphabets
+* Add cloud storage and preference support
+* Add menu icon and submenu support to system tray menus
+* More button importance levels `ErrorImportance`, `WarningImportance`
+* Support disabling of `AppTabs` and `DocTabs` items
+* Add image support to rich text (#2366)
+* Add CheckGroup.Remove (#3124)
+
+### Changed
+
+* The buttons on the default theme are no longer transparent, but we added more button importance types
+* Expose a storage.ErrNotExists for non existing documents (#3083)
+* Update `go-gl/glfw` to build against latest Glfw 3.3.8
+* List items in `widget.List` now implement the Focusable interface
+
+### Fixed
+
+* Displaying unicode or different language like Bengali doesn't work (#598)
+* Cannot disable container.TabItem (#1904)
+* Update Linux/XDG application theme to follow the FreeDesktop Dark Style Preference (#2657)
+* Running `fyne package -os android` needs NDK 16/19c (#3066)
+* Caret position lost when resizing a MultilineEntry (#3024)
+* Fix possible crash in table resize (#3369)
+* Memory usage surge when selecting/appending MultilineEntry text (#3426)
+* Fyne bundle does not support appending when parameter is a directory
+* Crash parsing invalid file URI (#3275)
+* Systray apps on macOS can only be terminated via the systray menu quit button (#3395)
+* Wayland Scaling support: sizes and distances are scaled wrong (#2850)
+* Google play console minimum API level 31 (#3375)
+* Data bound entry text replacing selection is ignored (#3340)
+* Split Container does not respect item's Visible status (#3232)
+* Android - Entry - OnSubmitted is not working (#3267)
+* Can't set custom CGO_CFLAGS and CGO_LDFLAGS with "fyne package" on darwin (#3276)
+* Text line not displayed in RichText (#3117)
+* Segfault when adding items directly in form struct (#3153)
+* Preferences RemoveValue does not save (#3229)
+* Create new folder directly from FolderDialog (#3174)
+* Slider drag handle is clipped off at minimum size (#2966)
+* Entry text "flickering" while typing (#3461)
+* Rendering of not changed canvas objects after an event (#3211)
+* Form dialog not displaying hint text and validation errors (#2781)
+
+
+## 2.2.4 - 9 November 2022
+
+### Fixes
+
+* Iphone incorrect click coordinates in zoomed screen view (#3122)
+* CachedFontFace seems to be causing crash (#3134)
+* Fix possible compile error if "fyne build" is used without icon metadata
+* Detect and use recent Android NDK toolchain
+* Handle fyne package -release and fyne release properly for Android and iOS
+* Fix issue with mobile simulation when systray used
+* Fix incorrect size and position for radio focus indicator (#3137)
+
+
+## 2.2.3 - 8 July 2022
+
+### Fixed
+
+* Regression: Preferences are not parsed at program start (#3125)
+* Wrappable RichText in a Split container causes crash (#3003, #2961)
+* meta.Version is always 1.0.0 on android & ios (#3109)
+
+
+## 2.2.2 - 30 June 2022
+
+### Fixed
+
+* Windows missing version metadata when packaged (#3046)
+* Fyne package would not build apps using old Fyne versions
+* System tray icon may not be removed on app exit in Windows
+* Emphasis in Markdown gives erroneous output in RichText (#2974)
+* When last visible window is closed, hidden window is set visible (#3059)
+* Do not close app when last window is closed but systrayMenu exists (#3092)
+* Image with ImageFillOriginal not showing (#3102)
+
+
+## 2.2.1 - 12 June 2022
+
+### Fixed
+
+* Fix various race conditions and compatibility issues with System tray menus
+* Resolve issue where macOS systray menu may not appear
+* Updated yaml dependency to fix CVE-2022-28948
+* Tab buttons stop working after removing a tab (#3050)
+* os.SetEnv("FYNE_FONT") doesn't work in v2.2.0 (#3056)
+
+
+## 2.2.0 - 7 June 2022
+
+### Added
+
+* Add SetIcon method on ToolbarAction (#2475)
+* Access compiled app metadata using new `App.Metadata()` method
+* Add support for System tray icon and menu (#283)
+* Support for Android Application Bundle (.aab) (#2663)
+* Initial support for OpenBSD and NetBSD
+* Add keyboard shortcuts to menu (#682)
+* Add technical preview of web driver and `fyne serve` command
+* Added `iossimulator` build target (#1917)
+* Allow dynamic themes via JSON templates (#211)
+* Custom hyperlink callback (#2979)
+* Add support for `.ico` file when compiling for windows (#2412)
+* Add binding.NewStringWithFormat (#2890)
+* Add Entry.SetMinRowsVisible
+* Add Menu.Refresh() and MainMenu.Refresh() (#2853)
+* Packages for Linux and BSD now support installing into the home directory
+* Add `.RemoveAll()` to containers
+* Add an AllString validator for chaining together string validators
+
+### Changed
+
+* Toolbar item constructors now return concrete types instead of ToolbarItem
+* Low importance buttons no longer draw button color as a background
+* ProgressBar widget height is now consistent with other widgets
+* Include check in DocTabs menu to show current tab
+* Don't call OnScrolled if offset did not change (#2646)
+* Prefer ANDROID_NDK_HOME over the ANDROID_HOME ndk-bundle location (#2920)
+* Support serialisation / deserialisation of the widget tree (#5)
+* Better error reporting / handling when OpenGL is not available (#2689)
+* Memory is now better reclaimed on Android when the OS requests it
+* Notifications on Linux and BSD now show the application icon
+* Change listeners for preferences no longer run when setting the same value
+* The file dialog now shows extensions in the list view for better readability
+* Many optimisations and widget performance enhancements
+* Updated various dependencies to their latest versions
+
+### Fixed
+
+* SendNotification does not show app name on Windows (#1940)
+* Copy-paste via keyboard don't work translated keyboard mappings on Windows (#1220)
+* OnScrolled triggered when offset hasn't changed (#1868)
+* Carriage Return (\r) is rendered as space (#2456)
+* storage.List() returns list with nil elements for empty directories (#2858)
+* Entry widget, position of cursor when clicking empty space (#2877)
+* SelectEntry cause UI hang (#2925)
+* Font cutoff with bold italics (#3001)
+* Fyne error: Preferences load error (#2936, 3015)
+* Scrolled List bad redraw when window is maximized (#3013)
+* Linux and BSD packages not being installable if the name contained spaces
+
+
+## 2.1.4 - 17 March 2022
+
+### Fixed
+
+* SetTheme() is not fully effective for widget.Form (#2810)
+* FolderOpenDialog SetDismissText is ineffective (#2830)
+* window.Resize() does not work if SetFixedSize(true) is set after (#2819)
+* Container.Remove() race causes crash (#2826, #2775, #2481)
+* FixedSize Window improperly sized if contains image with ImageFillOriginal (#2800)
+
+
+## 2.1.3 - 24 February 2022
+
+### Fixed
+
+* The text on button can't be show correctly when use imported font (#2512)
+* Fix issues with DocTabs scrolling (#2709)
+* Fix possible crash for tapping extended Radio or Check item
+* Resolve lookup of relative icons in FyneApp.toml
+* Window not shown when SetFixedSize is used without Resize (#2784)
+* Text and links in markdown can be rendered on top of each other (#2695)
+* Incorrect cursor movement in a multiline entry with wrapping (#2698)
+
+
+## 2.1.2 - 6 December 2021
+
+### Fixed
+
+* Scrolling list bound to data programmatically causes nil pointer dereference (#2549)
+* Rich text from markdown can get newlines wrong (#2589)
+* Fix crash on 32bit operating systems (#2603)
+* Compile failure on MacOS 10.12 Sierra (#2478)
+* Don't focus widgets on mobile where keyboard should not display (#2598)
+* storage.List doesn't return complete URI on Android for "content:" scheme (#2619)
+* Last word of the line and first word of the next line are joined in markdown parse (#2647)
+* Support for building `cmd/fyne` on Windows arm64
+* Fixed FreeBSD requiring installed glfw library dependency (#1928)
+* Apple M1: error when using mouse drag to resize window (#2188)
+* Struct binding panics in reload with slice field (#2607)
+* File Dialog favourites can break for certain locations (#2595)
+* Define user friendly names for Android Apps (#2653)
+* Entry validator not updating if content is changed via data binding after SetContent (#2639)
+* CenterOnScreen not working for FixedSize Window (#2550)
+* Panic in boundStringListItem.Get() (#2643)
+* Can't set an app/window icon to be an svg. (#1196)
+* SetFullScreen(false) can give error (#2588)
+
+
+## 2.1.1 - 22 October 2021
+
+### Fixed
+
+* Fix issue where table could select cells beyond data bound
+* Some fast taps could be ignored (#2484)
+* iOS app stops re-drawing mid-frame after a while (#950)
+* Mobile simulation mode did not work on Apple M1 computers
+* TextGrid background color can show gaps in render (#2493)
+* Fix alignment of files in list view of file dialog
+* Crash setting visible window on macOS to fixed size (#2488)
+* fyne bundle ignores -name flag in windows (#2395)
+* Lines with nil colour would crash renderer
+* Android -nm tool not found with NDK 23 (#2498)
+* Runtime panic because out of touchID (#2407)
+* Long text in Select boxes overflows out of the box (#2522)
+* Calling SetText on Label may not refresh correctly
+* Menu can be triggered by # key but not always Alt
+* Cursor position updates twice with delay (#2525)
+* widgets freeze after being in background and then a crash upon pop-up menu (#2536)
+* too many Refresh() calls may now cause visual artifacts in the List widget (#2548)
+* Entry.SetText may panic if called on a multiline entry with selected text (#2482)
+* TextGrid not always drawing correctly when resized (#2501)
+
+
+## 2.1.0 - 17 September 2021
+
+### Added
+
+* DocTabs container for handling multiple open files
+* Lifecycle API for handling foreground, background and other event
+* Add RichText widget and Markdown parser
+* Add TabWidth to TextStyle to specify tab size in spaces
+* Add CheckGroup widget for multi-select
+* Add FyneApp.toml metadata file to ease build commands
+* Include http and https in standard repositories
+* Add selection color to themes
+* Include baseline information in driver font measurement
+* Document storage API (App.Storage().Create() and others)
+* Add "App Files" to file dialog for apps that use document storage
+* Tab overflow on AppTabs
+* Add URI and Unbound type to data bindings
+* Add keyboard support for menus, pop-ups and buttons
+* Add SimpleRenderer to help make simple widgets (#709)
+* Add scroll functions for List, Table, Tree (#1892)
+* Add selection and disabling to MenuItem
+* Add Alignment to widget.Select (#2329)
+* Expose ScanCode for keyboard events originating from hardware (#1523)
+* Support macOS GPU switching (#2423)
+
+### Changed
+
+* Focusable widgets are no longer focused on tap, add canvas.Focus(obj) in Tapped handler if required
+* Move to background based selection for List, Table and Tree
+* Update fyne command line tool to use --posix style parameters
+* Switch from gz to xz compression for unix packages
+* Performance improvements with line, text and raster rendering
+* Items not yet visible can no longer be focused
+* Lines can now be drawn down to 1px (instead of 1dp) (#2298)
+* Support multiple lines of text on button (#2378)
+* Improved text layout speed by caching string size calculations
+* Updated to require Go 1.14 so we can use some new features
+* Window Resize request is now asynchronous
+* Up/Down keys take cursor home/end when on first/last lines respectively
+
+### Fixed
+
+* Correctly align text tabs (#1791)
+* Mobile apps theme does not match system (#472)
+* Toolbar with widget.Label makes the ToolbarAction buttons higher (#2257)
+* Memory leaks in renderers and canvases cache maps (#735)
+* FileDialog SetFilter does not work on Android devices (#2353)
+* Hover fix for List and Tree with Draggable objects
+* Line resize can flip slope (#2208)
+* Deadlocks when using widgets with data (#2348)
+* Changing input type with keyboard visible would not update soft keyboards
+* MainMenu() Close item does NOT call function defined in SetCloseIntercept (#2355)
+* Entry cursor position with mouse is offset vertically by theme.SizeNameInputBorder (#2387)
+* Backspace key is not working on Android AOSP (#1941)
+* macOS: 'NSUserNotification' has been deprecated (#1833)
+* macOS: Native menu would add new items if refreshed
+* iOS builds fail since Go 1.16
+* Re-add support for 32 bit iOS devices, if built with Go 1.14
+* Android builds fail on Apple M1 (#2439)
+* SetFullScreen(true) before ShowAndRun fails (#2446)
+* Interacting with another app when window.SetFullScreen(true) will cause the application to hide itself. (#2448)
+* Sequential writes to preferences does not save to file (#2449)
+* Correct Android keyboard handling (#2447)
+* MIUI-Android: The widget’s Hyperlink cannot open the URL (#1514)
+* Improved performance of data binding conversions and text MinSize
+
+
+## 2.0.4 - 6 August 2021
+
+### Changed
+
+* Disable Form labels when the element it applys to is disabled (#1530)
+* Entry popup menu now fires shortcuts so extended widgets can intercept
+* Update Android builds to SDK 30
+
+### Fixed
+
+* sendnotification show appID for name on windows (#1940)
+* Fix accidental removal of windows builds during cross-compile
+* Removing an item from a container did not update layout
+* Update title bar on Windows 10 to match OS theme (#2184)
+* Tapped triggered after Drag (#2235)
+* Improved documentation and example code for file dialog (#2156)
+* Preferences file gets unexpectedly cleared (#2241)
+* Extra row dividers rendered on using SetColumnWidth to update a table (#2266)
+* Fix resizing fullscreen issue
+* Fullscreen changes my display resolution when showing a dialog (#1832)
+* Entry validation does not work for empty field (#2179)
+* Tab support for focus handling missing on mobile
+* ScrollToBottom not always scrolling all the way when items added to container.Scroller
+* Fixed scrollbar disappearing after changing content (#2303)
+* Calling SetContent a second time with the same content will not show
+* Drawing text can panic when Color is nil (#2347)
+* Optimisations when drawing transparent rectangle or whitespace strings
+
+
 ## 2.0.3 - 30 April 2021
 
 ### Fixed
@@ -71,7 +632,7 @@ More detailed release notes can be found on the [releases page](https://github.c
 * Correct initial state of entry validation
 * fix entry widget mouse drag selection when scrolled
 * List widget panic when refreshing after changing content length (#1864)
-* Fix image caching that was too agressive on resize
+* Fix image caching that was too aggressive on resize
 * Pointer and cursor misalignment in widget.Entry (#1937)
 * SIGSEGV Sometimes When Closing a Program by Clicking a Button (#1604)
 * Advanced Color Picker shows Black for custom primary color as RGBA (#1970)

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/internal/painter/software"
 	"fyne.io/fyne/v2/test"
@@ -48,13 +49,14 @@ func TestLabel_MinSize(t *testing.T) {
 	label := NewLabel("Test")
 	minA := label.MinSize()
 
-	assert.Less(t, theme.Padding()*2, minA.Width)
+	assert.Less(t, theme.InnerPadding(), minA.Width)
 
 	label.SetText("Longer")
 	minB := label.MinSize()
 	assert.Less(t, minA.Width, minB.Width)
 
 	label.Text = "."
+	label.Refresh()
 	minC := label.MinSize()
 	assert.Greater(t, minB.Width, minC.Width)
 }
@@ -81,7 +83,7 @@ func TestLabel_Text(t *testing.T) {
 	assert.Equal(t, "Test", textRenderTexts(label)[0].Text)
 }
 
-func TestLabel_Text_Refresht(t *testing.T) {
+func TestLabel_Text_Refresh(t *testing.T) {
 	label := &Label{Text: ""}
 
 	assert.Equal(t, "", label.Text)
@@ -130,7 +132,7 @@ func TestText_MinSize_MultiLine(t *testing.T) {
 	assert.True(t, min2.Height > min.Height)
 
 	yPos := float32(-1)
-	for _, text := range test.WidgetRenderer(textMultiLine).(*textRenderer).texts {
+	for _, text := range test.WidgetRenderer(textMultiLine).(*textRenderer).Objects() {
 		assert.True(t, text.Size().Height < min2.Height)
 		assert.True(t, text.Position().Y > yPos)
 		yPos = text.Position().Y
@@ -155,9 +157,9 @@ func TestLabel_ApplyTheme(t *testing.T) {
 	text.Hide()
 
 	render := test.WidgetRenderer(text).(*textRenderer)
-	assert.Equal(t, theme.ForegroundColor(), render.texts[0].Color)
+	assert.Equal(t, theme.ForegroundColor(), render.Objects()[0].(*canvas.Text).Color)
 	text.Show()
-	assert.Equal(t, theme.ForegroundColor(), render.texts[0].Color)
+	assert.Equal(t, theme.ForegroundColor(), render.Objects()[0].(*canvas.Text).Color)
 }
 
 func TestLabel_CreateRendererDoesNotAffectSize(t *testing.T) {
@@ -201,4 +203,40 @@ func TestNewLabelWithData(t *testing.T) {
 	label := NewLabelWithData(str)
 	waitForBinding()
 	assert.Equal(t, "Init", label.Text)
+}
+
+func TestLabelImportance(t *testing.T) {
+	test.NewApp()
+	defer test.NewApp()
+	test.ApplyTheme(t, theme.LightTheme())
+
+	lbl := NewLabel("hello, fyne")
+	w := test.NewWindow(lbl)
+	defer w.Close()
+
+	test.AssertImageMatches(t, "label/label_importance_medium.png", w.Canvas().Capture())
+
+	lbl.Importance = LowImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_low.png", w.Canvas().Capture())
+
+	lbl.Importance = MediumImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_medium.png", w.Canvas().Capture())
+
+	lbl.Importance = HighImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_high.png", w.Canvas().Capture())
+
+	lbl.Importance = DangerImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_danger.png", w.Canvas().Capture())
+
+	lbl.Importance = WarningImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_warning.png", w.Canvas().Capture())
+
+	lbl.Importance = SuccessImportance
+	lbl.Refresh()
+	test.AssertImageMatches(t, "label/label_importance_success.png", w.Canvas().Capture())
 }

@@ -1,6 +1,8 @@
 package canvas_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -8,7 +10,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/canvas"
+	intRepo "fyne.io/fyne/v2/internal/repository"
 	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/storage/repository"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -45,6 +49,12 @@ func TestNewImageFromReader(t *testing.T) {
 	assert.Equal(t, "", img.File)
 	assert.NotNil(t, img.Resource)
 	assert.Equal(t, "fyne.png", img.Resource.Name())
+
+	img.FillMode = canvas.ImageFillOriginal
+
+	size := img.MinSize()
+	assert.Equal(t, float32(512), size.Width)
+	assert.Equal(t, float32(512), size.Height)
 }
 
 func TestNewImageFromURI_File(t *testing.T) {
@@ -55,7 +65,47 @@ func TestNewImageFromURI_File(t *testing.T) {
 		path = strings.ReplaceAll(path, "\\", "/")
 	}
 
-	img := canvas.NewImageFromURI(storage.NewURI("file://" + path))
+	img := canvas.NewImageFromURI(storage.NewFileURI(path))
 	assert.NotNil(t, img)
 	assert.Equal(t, path, img.File)
+
+	img.FillMode = canvas.ImageFillOriginal
+
+	size := img.MinSize()
+	assert.Equal(t, float32(512), size.Width)
+	assert.Equal(t, float32(512), size.Height)
+}
+
+func TestNewImageFromURI_HTTP(t *testing.T) {
+	h := intRepo.NewHTTPRepository()
+	repository.Register("http", h)
+
+	pwd, _ := os.Getwd()
+	path := filepath.Join(filepath.Dir(pwd), "theme", "icons", "fyne.png")
+	f, _ := os.ReadFile(path)
+
+	// start a test server to test http calls
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		f, err := os.ReadFile(path)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.Write(f)
+	}))
+	defer ts.Close()
+
+	url, _ := storage.ParseURI(ts.URL)
+	img := canvas.NewImageFromURI(url)
+	assert.NotNil(t, img)
+	assert.Equal(t, "", img.File)
+	assert.NotNil(t, img.Resource)
+	assert.Equal(t, url.Authority(), img.Resource.Name())
+	assert.Equal(t, f, img.Resource.Content())
+
+	img.FillMode = canvas.ImageFillOriginal
+
+	size := img.MinSize()
+	assert.Equal(t, float32(512), size.Width)
+	assert.Equal(t, float32(512), size.Height)
 }

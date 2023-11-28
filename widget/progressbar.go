@@ -1,18 +1,17 @@
 package widget
 
 import (
-	"fmt"
 	"image/color"
+	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/internal/cache"
+	col "fyne.io/fyne/v2/internal/color"
 	"fyne.io/fyne/v2/internal/widget"
 	"fyne.io/fyne/v2/theme"
 )
-
-const defaultText = "%d%%"
 
 type progressRenderer struct {
 	widget.BaseRenderer
@@ -31,7 +30,8 @@ func (p *progressRenderer) MinSize() fyne.Size {
 		tsize = fyne.MeasureText("100%", p.label.TextSize, p.label.TextStyle)
 	}
 
-	return fyne.NewSize(tsize.Width+theme.Padding()*4, tsize.Height+theme.Padding()*2)
+	padding := theme.InnerPadding() * 2
+	return fyne.NewSize(tsize.Width+padding, tsize.Height+padding)
 }
 
 func (p *progressRenderer) updateBar() {
@@ -48,7 +48,7 @@ func (p *progressRenderer) updateBar() {
 	if text := p.progress.TextFormatter; text != nil {
 		p.label.Text = text()
 	} else {
-		p.label.Text = fmt.Sprintf(defaultText, int(ratio*100))
+		p.label.Text = strconv.Itoa(int(ratio*100)) + "%"
 	}
 
 	size := p.progress.Size()
@@ -65,8 +65,10 @@ func (p *progressRenderer) Layout(size fyne.Size) {
 // applyTheme updates the progress bar to match the current theme
 func (p *progressRenderer) applyTheme() {
 	p.background.FillColor = progressBackgroundColor()
+	p.background.CornerRadius = theme.InputRadiusSize()
 	p.bar.FillColor = theme.PrimaryColor()
-	p.label.Color = theme.ForegroundColor()
+	p.bar.CornerRadius = theme.InputRadiusSize()
+	p.label.Color = theme.BackgroundColor()
 	p.label.TextSize = theme.TextSize()
 }
 
@@ -75,6 +77,7 @@ func (p *progressRenderer) Refresh() {
 	p.updateBar()
 	p.background.Refresh()
 	p.bar.Refresh()
+	p.label.Refresh()
 	canvas.Refresh(p.progress.super())
 }
 
@@ -88,10 +91,9 @@ type ProgressBar struct {
 	// If set, it overrides the percentage readout and runs each time the value updates.
 	//
 	// Since: 1.4
-	TextFormatter func() string
+	TextFormatter func() string `json:"-"`
 
-	valueSource   binding.Float
-	valueListener binding.DataListener
+	binder basicBinder
 }
 
 // Bind connects the specified data source to this ProgressBar.
@@ -99,21 +101,8 @@ type ProgressBar struct {
 //
 // Since: 2.0
 func (p *ProgressBar) Bind(data binding.Float) {
-	p.Unbind()
-	p.valueSource = data
-
-	p.valueListener = binding.NewDataListener(func() {
-		val, err := data.Get()
-		if err != nil {
-			fyne.LogError("Error getting current data value", err)
-			return
-		}
-		p.Value = val
-		if cache.IsRendered(p) {
-			p.Refresh()
-		}
-	})
-	data.AddListener(p.valueListener)
+	p.binder.SetCallback(p.updateFromData)
+	p.binder.Bind(data)
 }
 
 // SetValue changes the current value of this progress bar (from p.Min to p.Max).
@@ -137,8 +126,10 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 	}
 
 	background := canvas.NewRectangle(progressBackgroundColor())
+	background.CornerRadius = theme.InputRadiusSize()
 	bar := canvas.NewRectangle(theme.PrimaryColor())
-	label := canvas.NewText("0%", theme.ForegroundColor())
+	bar.CornerRadius = theme.InputRadiusSize()
+	label := canvas.NewText("0%", theme.BackgroundColor())
 	label.Alignment = fyne.TextAlignCenter
 	return &progressRenderer{widget.NewBaseRenderer([]fyne.CanvasObject{background, bar, label}), background, bar, label, p}
 }
@@ -148,13 +139,7 @@ func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 //
 // Since: 2.0
 func (p *ProgressBar) Unbind() {
-	if p.valueSource == nil || p.valueListener == nil {
-		return
-	}
-
-	p.valueSource.RemoveListener(p.valueListener)
-	p.valueListener = nil
-	p.valueSource = nil
+	p.binder.Unbind()
 }
 
 // NewProgressBar creates a new progress bar widget.
@@ -178,7 +163,24 @@ func NewProgressBarWithData(data binding.Float) *ProgressBar {
 }
 
 func progressBackgroundColor() color.Color {
-	r, g, b, a := theme.PrimaryColor().RGBA()
-	faded := uint8(a) / 3
+	r, g, b, a := col.ToNRGBA(theme.PrimaryColor())
+	faded := uint8(a) / 2
 	return &color.NRGBA{R: uint8(r), G: uint8(g), B: uint8(b), A: faded}
+}
+
+func (p *ProgressBar) updateFromData(data binding.DataItem) {
+	if data == nil {
+		return
+	}
+	floatSource, ok := data.(binding.Float)
+	if !ok {
+		return
+	}
+
+	val, err := floatSource.Get()
+	if err != nil {
+		fyne.LogError("Error getting current data value", err)
+		return
+	}
+	p.SetValue(val)
 }

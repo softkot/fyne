@@ -8,8 +8,10 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/cmd/fyne_demo/data"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/validation"
+	"fyne.io/fyne/v2/driver/mobile"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -48,6 +50,7 @@ func makeAccordionTab(_ fyne.Window) fyne.CanvasObject {
 			Detail: widget.NewLabel("Three"),
 		},
 	)
+	ac.MultiOpen = true
 	ac.Append(widget.NewAccordionItem("D", &widget.Entry{Text: "Four"}))
 	return ac
 }
@@ -66,7 +69,7 @@ func makeButtonTab(_ fyne.Window) fyne.CanvasObject {
 		shareItem,
 	))
 
-	return container.NewVBox(
+	return container.NewVScroll(container.NewVBox(
 		widget.NewButton("Button (text only)", func() { fmt.Println("tapped text button") }),
 		widget.NewButtonWithIcon("Button (text & leading icon)", theme.ConfirmIcon(), func() { fmt.Println("tapped text & leading icon button") }),
 		&widget.Button{
@@ -82,18 +85,33 @@ func makeButtonTab(_ fyne.Window) fyne.CanvasObject {
 			OnTapped:      func() { fmt.Println("tapped trailing-aligned, text & trailing icon button") },
 		},
 		disabled,
+		&widget.Button{
+			Text:       "Primary button",
+			Importance: widget.HighImportance,
+			OnTapped:   func() { fmt.Println("high importance button") },
+		},
+		&widget.Button{
+			Text:       "Danger button",
+			Importance: widget.DangerImportance,
+			OnTapped:   func() { fmt.Println("tapped danger button") },
+		},
+		&widget.Button{
+			Text:       "Warning button",
+			Importance: widget.WarningImportance,
+			OnTapped:   func() { fmt.Println("tapped warning button") },
+		},
 		layout.NewSpacer(),
 		layout.NewSpacer(),
 		menuLabel,
 		layout.NewSpacer(),
-	)
+	))
 }
 
 func makeCardTab(_ fyne.Window) fyne.CanvasObject {
 	card1 := widget.NewCard("Book a table", "Which time suits?",
 		widget.NewRadioGroup([]string{"6:30pm", "7:00pm", "7:45pm"}, func(string) {}))
 	card2 := widget.NewCard("With media", "No content, with image", nil)
-	card2.Image = canvas.NewImageFromResource(theme.FyneLogo())
+	card2.Image = canvas.NewImageFromResource(data.FyneLogo)
 	card3 := widget.NewCard("Title 3", "Another card", widget.NewLabel("Content"))
 	return container.NewGridWithColumns(2, container.NewVBox(card1, card3),
 		container.NewVBox(card2))
@@ -105,10 +123,11 @@ func makeEntryTab(_ fyne.Window) fyne.CanvasObject {
 	entryDisabled := widget.NewEntry()
 	entryDisabled.SetText("Entry (disabled)")
 	entryDisabled.Disable()
-	entryValidated := &widget.Entry{Validator: validation.NewRegexp(`\d`, "Must contain a number")}
+	entryValidated := newNumEntry()
 	entryValidated.SetPlaceHolder("Must contain a number")
 	entryMultiLine := widget.NewMultiLineEntry()
 	entryMultiLine.SetPlaceHolder("MultiLine Entry")
+	entryMultiLine.SetMinRowsVisible(4)
 
 	return container.NewVBox(
 		entry,
@@ -156,61 +175,118 @@ func makeTextTab(_ fyne.Window) fyne.CanvasObject {
 	hyperlink.Wrapping = fyne.TextWrapWord
 	entryLoremIpsum.Wrapping = fyne.TextWrapWord
 
-	radioAlign := widget.NewRadioGroup([]string{"Text Alignment Leading", "Text Alignment Center", "Text Alignment Trailing"}, func(s string) {
+	rich := widget.NewRichTextFromMarkdown(`
+# RichText Heading
+
+## A Sub Heading
+
+![title](../../theme/icons/fyne.png)
+
+---
+
+* Item1 in _three_ segments
+* Item2
+* Item3
+
+Normal **Bold** *Italic* [Link](https://fyne.io/) and some ` + "`Code`" + `.
+This styled row should also wrap as expected, but only *when required*.
+
+> An interesting quote here, most likely sharing some very interesting wisdom.`)
+	rich.Scroll = container.ScrollBoth
+	rich.Segments[2].(*widget.ImageSegment).Alignment = fyne.TextAlignTrailing
+
+	radioAlign := widget.NewRadioGroup([]string{"Leading", "Center", "Trailing"}, func(s string) {
 		var align fyne.TextAlign
 		switch s {
-		case "Text Alignment Leading":
+		case "Leading":
 			align = fyne.TextAlignLeading
-		case "Text Alignment Center":
+		case "Center":
 			align = fyne.TextAlignCenter
-		case "Text Alignment Trailing":
+		case "Trailing":
 			align = fyne.TextAlignTrailing
 		}
 
 		label.Alignment = align
 		hyperlink.Alignment = align
+		for i := range rich.Segments {
+			if seg, ok := rich.Segments[i].(*widget.TextSegment); ok {
+				seg.Style.Alignment = align
+			}
+			if seg, ok := rich.Segments[i].(*widget.HyperlinkSegment); ok {
+				seg.Alignment = align
+			}
+		}
 
 		label.Refresh()
 		hyperlink.Refresh()
+		rich.Refresh()
 	})
-	radioAlign.SetSelected("Text Alignment Leading")
+	radioAlign.Horizontal = true
+	radioAlign.SetSelected("Leading")
 
-	radioWrap := widget.NewRadioGroup([]string{"Text Wrapping Off", "Text Wrapping Truncate", "Text Wrapping Break", "Text Wrapping Word"}, func(s string) {
+	radioWrap := widget.NewRadioGroup([]string{"Off", "Scroll", "Break", "Word"}, func(s string) {
 		var wrap fyne.TextWrap
+		scroll := container.ScrollBoth
 		switch s {
-		case "Text Wrapping Off":
+		case "Off":
 			wrap = fyne.TextWrapOff
-		case "Text Wrapping Truncate":
-			wrap = fyne.TextTruncate
-		case "Text Wrapping Break":
+			scroll = container.ScrollNone
+		case "Scroll":
+			wrap = fyne.TextWrapOff
+		case "Break":
 			wrap = fyne.TextWrapBreak
-		case "Text Wrapping Word":
+		case "Word":
 			wrap = fyne.TextWrapWord
 		}
 
 		label.Wrapping = wrap
 		hyperlink.Wrapping = wrap
 		entryLoremIpsum.Wrapping = wrap
+		entryLoremIpsum.Scroll = scroll
+		rich.Wrapping = wrap
 
 		label.Refresh()
 		hyperlink.Refresh()
 		entryLoremIpsum.Refresh()
+		rich.Refresh()
 	})
-	radioWrap.SetSelected("Text Wrapping Word")
+	radioWrap.Horizontal = true
+	radioWrap.SetSelected("Word")
+
+	radioTrunc := widget.NewRadioGroup([]string{"Off", "Clip", "Ellipsis"}, func(s string) {
+		var trunc fyne.TextTruncation
+		switch s {
+		case "Off":
+			trunc = fyne.TextTruncateOff
+		case "Clip":
+			trunc = fyne.TextTruncateClip
+		case "Ellipsis":
+			trunc = fyne.TextTruncateEllipsis
+		}
+
+		label.Truncation = trunc
+		rich.Truncation = trunc
+
+		label.Refresh()
+		hyperlink.Refresh()
+		entryLoremIpsum.Refresh()
+		rich.Refresh()
+	})
+	radioTrunc.Horizontal = true
+	radioTrunc.SetSelected("Off")
 
 	fixed := container.NewVBox(
-		container.NewHBox(
-			radioAlign,
-			layout.NewSpacer(),
-			radioWrap,
-		),
+		widget.NewForm(
+			widget.NewFormItem("Text Alignment", radioAlign),
+			widget.NewFormItem("Wrapping", radioWrap),
+			widget.NewFormItem("Truncation", radioTrunc)),
 		label,
 		hyperlink,
 	)
 
 	grid := makeTextGrid()
-	return fyne.NewContainerWithLayout(layout.NewBorderLayout(fixed, grid, nil, nil),
-		fixed, entryLoremIpsum, grid)
+	return container.NewBorder(fixed, grid, nil, nil,
+		container.NewGridWithRows(2, rich, entryLoremIpsum))
 }
 
 func makeInputTab(_ fyne.Window) fyne.CanvasObject {
@@ -218,6 +294,8 @@ func makeInputTab(_ fyne.Window) fyne.CanvasObject {
 	selectEntry.PlaceHolder = "Type or select"
 	disabledCheck := widget.NewCheck("Disabled check", func(bool) {})
 	disabledCheck.Disable()
+	checkGroup := widget.NewCheckGroup([]string{"CheckGroup Item 1", "CheckGroup Item 2"}, func(s []string) { fmt.Println("selected", s) })
+	checkGroup.Horizontal = true
 	radio := widget.NewRadioGroup([]string{"Radio Item 1", "Radio Item 2"}, func(s string) { fmt.Println("selected", s) })
 	radio.Horizontal = true
 	disabledRadio := widget.NewRadioGroup([]string{"Disabled radio"}, func(string) {})
@@ -228,9 +306,10 @@ func makeInputTab(_ fyne.Window) fyne.CanvasObject {
 		selectEntry,
 		widget.NewCheck("Check", func(on bool) { fmt.Println("checked", on) }),
 		disabledCheck,
+		checkGroup,
 		radio,
 		disabledRadio,
-		widget.NewSlider(0, 100),
+		widget.NewSlider(0, 1000),
 	)
 }
 
@@ -265,6 +344,9 @@ func makeFormTab(_ fyne.Window) fyne.CanvasObject {
 	password := widget.NewPasswordEntry()
 	password.SetPlaceHolder("Password")
 
+	disabled := widget.NewRadioGroup([]string{"Option 1", "Option 2"}, func(string) {})
+	disabled.Horizontal = true
+	disabled.Disable()
 	largeText := widget.NewMultiLineEntry()
 
 	form := &widget.Form{
@@ -284,6 +366,7 @@ func makeFormTab(_ fyne.Window) fyne.CanvasObject {
 		},
 	}
 	form.Append("Password", password)
+	form.Append("Disabled", disabled)
 	form.Append("Message", largeText)
 	return form
 }
@@ -366,4 +449,19 @@ func newContextMenuButton(label string, menu *fyne.Menu) *contextMenuButton {
 
 	b.ExtendBaseWidget(b)
 	return b
+}
+
+type numEntry struct {
+	widget.Entry
+}
+
+func (n *numEntry) Keyboard() mobile.KeyboardType {
+	return mobile.NumberKeyboard
+}
+
+func newNumEntry() *numEntry {
+	e := &numEntry{}
+	e.ExtendBaseWidget(e)
+	e.Validator = validation.NewRegexp(`\d`, "Must contain a number")
+	return e
 }

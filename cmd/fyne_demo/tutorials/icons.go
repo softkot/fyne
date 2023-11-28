@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
@@ -63,8 +62,7 @@ func iconScreen(_ fyne.Window) fyne.CanvasObject {
 	background.SetMinSize(fyne.NewSize(280, 280))
 	b.icon = widget.NewIcon(b.icons[b.current].icon)
 
-	return fyne.NewContainerWithLayout(layout.NewBorderLayout(
-		bar, nil, nil, nil), bar, background, b.icon)
+	return container.NewBorder(bar, nil, nil, nil, background, b.icon)
 }
 
 func checkerPattern(x, y, _, _ int) color.Color {
@@ -117,6 +115,7 @@ func loadIcons() []iconInfo {
 		{"ErrorIcon", theme.ErrorIcon()},
 		{"QuestionIcon", theme.QuestionIcon()},
 		{"WarningIcon", theme.WarningIcon()},
+		{"BrokenImageIcon", theme.BrokenImageIcon()},
 
 		{"DocumentIcon", theme.DocumentIcon()},
 		{"DocumentCreateIcon", theme.DocumentCreateIcon()},
@@ -146,9 +145,12 @@ func loadIcons() []iconInfo {
 		{"ViewRefreshIcon", theme.ViewRefreshIcon()},
 		{"VisibilityIcon", theme.VisibilityIcon()},
 		{"VisibilityOffIcon", theme.VisibilityOffIcon()},
-		{"ZoomFitIcon", theme.ZoomFitIcon()},
-		{"ZoomInIcon", theme.ZoomInIcon()},
-		{"ZoomOutIcon", theme.ZoomOutIcon()},
+		{"ViewZoomFitIcon", theme.ZoomFitIcon()},
+		{"ViewZoomInIcon", theme.ZoomInIcon()},
+		{"ViewZoomOutIcon", theme.ZoomOutIcon()},
+
+		{"MoreHorizontalIcon", theme.MoreHorizontalIcon()},
+		{"MoreVerticalIcon", theme.MoreVerticalIcon()},
 
 		{"MoveDownIcon", theme.MoveDownIcon()},
 		{"MoveUpIcon", theme.MoveUpIcon()},
@@ -181,5 +183,12 @@ func loadIcons() []iconInfo {
 		{"VolumeDown", theme.VolumeDownIcon()},
 		{"VolumeMute", theme.VolumeMuteIcon()},
 		{"VolumeUp", theme.VolumeUpIcon()},
+
+		{"AccountIcon", theme.AccountIcon()},
+		{"LoginIcon", theme.LoginIcon()},
+		{"LogoutIcon", theme.LogoutIcon()},
+
+		{"ListIcon", theme.ListIcon()},
+		{"GridIcon", theme.GridIcon()},
 	}
 }

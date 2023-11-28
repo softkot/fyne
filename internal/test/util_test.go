@@ -1,6 +1,7 @@
 package test_test
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
@@ -8,33 +9,25 @@ import (
 	"os"
 	"testing"
 
-	"github.com/goki/freetype"
-	"github.com/goki/freetype/truetype"
+	"github.com/go-text/typesetting/font"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/image/font"
 
+	"fyne.io/fyne/v2/internal/painter"
 	"fyne.io/fyne/v2/internal/test"
 	"fyne.io/fyne/v2/theme"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestAssertImageMatches(t *testing.T) {
-	bounds := image.Rect(0, 0, 100, 50)
+	bounds := image.Rect(0, 0, 100, 34)
 	img := image.NewNRGBA(bounds)
 	draw.Draw(img, bounds, image.NewUniform(color.White), image.Point{}, draw.Src)
 
 	txtImg := image.NewNRGBA(bounds)
-	opts := truetype.Options{Size: 20, DPI: 96}
-	f, _ := truetype.Parse(theme.TextFont().Content())
-	face := truetype.NewFace(f, &opts)
-	d := font.Drawer{
-		Dst:  txtImg,
-		Src:  image.NewUniform(color.Black),
-		Face: face,
-		Dot:  freetype.Pt(0, 50-face.Metrics().Descent.Ceil()),
-	}
-	d.DrawString("Hello!")
+	face, err := font.ParseTTF(bytes.NewReader(theme.TextFont().Content()))
+	assert.Nil(t, err)
+
+	painter.DrawString(txtImg, "Hello!", color.Black, []font.Face{face}, 25, 1, 4)
 	draw.Draw(img, bounds, txtImg, image.Point{}, draw.Over)
 
 	tt := &testing.T{}
@@ -43,11 +36,11 @@ func TestAssertImageMatches(t *testing.T) {
 	assert.Equal(t, img, readImage(t, "testdata/failed/non_existing_master.png"), "image was written to disk")
 
 	tt = &testing.T{}
-	assert.True(t, test.AssertImageMatches(tt, "master.png", img), "existing master is equal a given image")
-	assert.False(t, tt.Failed(), "test did not fail")
+	assert.True(t, test.AssertImageMatches(tt, "master.png", img), "existing master should equal given image")
+	assert.False(t, tt.Failed(), "failed image match")
 
 	tt = &testing.T{}
-	assert.False(t, test.AssertImageMatches(tt, "diffing_master.png", img), "existing master is not equal a given image")
+	assert.False(t, test.AssertImageMatches(tt, "diffing_master.png", img), "existing master should not equal given image")
 	assert.True(t, tt.Failed(), "test did not fail")
 	assert.Equal(t, img, readImage(t, "testdata/failed/diffing_master.png"), "image was written to disk")
 

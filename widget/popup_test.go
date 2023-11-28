@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/widget"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
@@ -60,6 +61,24 @@ func TestShowPopUpAtPosition(t *testing.T) {
 		assert.True(t, pop.Visible())
 		assert.Equal(t, 1, len(c.Overlays().List()))
 		assert.Equal(t, pos.Add(fyne.NewPos(theme.Padding(), theme.Padding())), pop.(*PopUp).Content.Position())
+	}
+}
+
+func TestShowPopUpAtRelativePosition(t *testing.T) {
+	pos := fyne.NewPos(6, 9)
+	label := NewLabel("Hi")
+	parent1 := NewLabel("Parent1")
+	parent2 := NewLabel("Parent2")
+	w := test.NewWindow(
+		&fyne.Container{Layout: layout.NewVBoxLayout(), Objects: []fyne.CanvasObject{parent1, parent2}})
+	w.Resize(fyne.NewSize(100, 200))
+
+	ShowPopUpAtRelativePosition(label, w.Canvas(), pos, parent2)
+	pop := w.Canvas().Overlays().Top()
+	if assert.NotNil(t, pop) {
+		assert.True(t, pop.Visible())
+		assert.Equal(t, 1, len(w.Canvas().Overlays().List()))
+		assert.Equal(t, pos.Add(parent2.Position()).Add(fyne.NewPos(theme.Padding()*2, theme.Padding()*2)), pop.(*PopUp).Content.Position())
 	}
 }
 
@@ -136,8 +155,8 @@ func TestPopUp_MinSize(t *testing.T) {
 	assert.Equal(t, label.MinSize().Height, inner.Height)
 
 	min := pop.MinSize()
-	assert.Equal(t, label.MinSize().Width+theme.Padding()*2, min.Width)
-	assert.Equal(t, label.MinSize().Height+theme.Padding()*2, min.Height)
+	assert.Equal(t, label.MinSize().Width+theme.InnerPadding(), min.Width)
+	assert.Equal(t, label.MinSize().Height+theme.InnerPadding(), min.Height)
 }
 
 func TestPopUp_Move(t *testing.T) {
@@ -210,7 +229,7 @@ func TestPopUp_Resize(t *testing.T) {
 
 	size := fyne.NewSize(60, 50)
 	pop.Resize(size)
-	assert.Equal(t, size.Subtract(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)), pop.Content.Size())
+	assert.Equal(t, size.Subtract(fyne.NewSize(theme.InnerPadding(), theme.InnerPadding())), pop.Content.Size())
 
 	popSize := pop.Size()
 	assert.Equal(t, float32(80), popSize.Width) // these are 80 as the popUp must fill our overlay
@@ -301,7 +320,7 @@ func TestPopUp_Layout(t *testing.T) {
 	if bg, ok := r.Objects()[1].(*canvas.Rectangle); assert.True(t, ok, "a background rectangle is rendered before the content") {
 		assert.Equal(t, size, bg.Size())
 		assert.Equal(t, pos, bg.Position())
-		assert.Equal(t, theme.BackgroundColor(), bg.FillColor)
+		assert.Equal(t, theme.OverlayBackgroundColor(), bg.FillColor)
 	}
 	assert.Equal(t, r.Objects()[2], content)
 }
@@ -415,7 +434,7 @@ func TestModalPopUp_Resize(t *testing.T) {
 
 	size := fyne.NewSize(50, 48)
 	pop.Resize(size)
-	assert.Equal(t, size.Subtract(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)), pop.Content.Size())
+	assert.Equal(t, size.Subtract(fyne.NewSize(theme.InnerPadding(), theme.InnerPadding())), pop.Content.Size())
 
 	popSize := pop.Size()
 	assert.Equal(t, float32(80), popSize.Width) // these are 80 as the popUp must fill our overlay
@@ -429,8 +448,8 @@ func TestModalPopUp_Resize_Constrained(t *testing.T) {
 	pop := NewModalPopUp(label, win.Canvas())
 
 	pop.Resize(fyne.NewSize(90, 100))
-	assert.Equal(t, 80-theme.Padding()*2, pop.Content.Size().Width)
-	assert.Equal(t, 80-theme.Padding()*2, pop.Content.Size().Height)
+	assert.Equal(t, 80-theme.InnerPadding(), pop.Content.Size().Width)
+	assert.Equal(t, 80-theme.InnerPadding(), pop.Content.Size().Height)
 	assert.Equal(t, float32(80), pop.Size().Width)
 	assert.Equal(t, float32(80), pop.Size().Height)
 }

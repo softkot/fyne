@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"image"
 	"image/color"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/internal/painter"
+	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/tools/playground"
@@ -30,23 +30,32 @@ type Settings struct {
 
 	preview *canvas.Image
 	colors  []fyne.CanvasObject
+
+	userTheme fyne.Theme
 }
 
 // NewSettings returns a new settings instance with the current configuration loaded
 func NewSettings() *Settings {
 	s := &Settings{}
 	s.load()
-
+	if s.fyneSettings.Scale == 0 {
+		s.fyneSettings.Scale = 1
+	}
 	return s
 }
 
 // AppearanceIcon returns the icon for appearance settings
 func (s *Settings) AppearanceIcon() fyne.Resource {
-	return theme.NewThemedResource(appearanceIcon)
+	return theme.NewThemedResource(resourceAppearanceSvg)
 }
 
 // LoadAppearanceScreen creates a new settings screen to handle appearance configuration
 func (s *Settings) LoadAppearanceScreen(w fyne.Window) fyne.CanvasObject {
+	s.userTheme = fyne.CurrentApp().Settings().Theme()
+	if s.userTheme == nil {
+		s.userTheme = theme.DefaultTheme()
+	}
+
 	s.preview = canvas.NewImageFromImage(s.createPreview())
 	s.preview.FillMode = canvas.ImageFillContain
 
@@ -64,12 +73,18 @@ func (s *Settings) LoadAppearanceScreen(w fyne.Window) fyne.CanvasObject {
 	scale := s.makeScaleGroup(w.Canvas().Scale())
 	box := container.NewVBox(scale)
 
+	animations := widget.NewCheck("Animate widgets", func(on bool) {
+		s.fyneSettings.DisableAnimations = !on
+	})
+	animations.Checked = !s.fyneSettings.DisableAnimations
 	for _, c := range theme.PrimaryColorNames() {
 		b := newColorButton(c, theme.PrimaryColorNamed(c), s)
 		s.colors = append(s.colors, b)
 	}
 	swatch := container.NewGridWithColumns(len(s.colors), s.colors...)
-	appearance := widget.NewForm(widget.NewFormItem("Main Color", swatch),
+	appearance := widget.NewForm(
+		widget.NewFormItem("Animations", animations),
+		widget.NewFormItem("Main Color", swatch),
 		widget.NewFormItem("Theme", themes))
 
 	box.Add(widget.NewCard("Appearance", "", appearance))
@@ -108,15 +123,13 @@ func (s *Settings) createPreview() image.Image {
 	oldTheme := fyne.CurrentApp().Settings().Theme()
 	oldColor := fyne.CurrentApp().Settings().PrimaryColor()
 
-	th := oldTheme
+	variant := theme.VariantDark
 	if s.fyneSettings.ThemeName == "light" {
-		th = theme.LightTheme()
-	} else if s.fyneSettings.ThemeName == "dark" {
-		th = theme.DarkTheme()
+		variant = theme.VariantLight
 	}
 
-	painter.SvgCacheReset() // reset icon cache
-	fyne.CurrentApp().Settings().(overrideTheme).OverrideTheme(th, s.fyneSettings.PrimaryColor)
+	cache.ResetThemeCaches() // reset icon cache
+	fyne.CurrentApp().Settings().(overrideTheme).OverrideTheme(&previewTheme{s.userTheme, variant}, s.fyneSettings.PrimaryColor)
 
 	empty := widget.NewLabel("")
 	tabs := container.NewAppTabs(
@@ -129,9 +142,11 @@ func (s *Settings) createPreview() image.Image {
 
 	c.SetContent(tabs)
 	c.Resize(fyne.NewSize(380, 380))
+	// wait for indicator animation
+	time.Sleep(canvas.DurationShort)
 	img := c.Capture()
 
-	painter.SvgCacheReset() // ensure we re-create the correct cached assets
+	cache.ResetThemeCaches() // ensure we re-create the correct cached assets
 	fyne.CurrentApp().Settings().(overrideTheme).OverrideTheme(oldTheme, oldColor)
 	return img
 }
@@ -175,7 +190,7 @@ func (s *Settings) saveToFile(path string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, data, 0644)
+	return os.WriteFile(path, data, 0644)
 }
 
 type colorButton struct {
@@ -194,6 +209,7 @@ func newColorButton(n string, c color.Color, s *Settings) *colorButton {
 
 func (c *colorButton) CreateRenderer() fyne.WidgetRenderer {
 	r := canvas.NewRectangle(c.color)
+	r.CornerRadius = theme.SelectionRadiusSize()
 	r.StrokeWidth = 5
 
 	if c.name == c.s.fyneSettings.PrimaryColor {
@@ -224,7 +240,7 @@ func (c *colorRenderer) Layout(s fyne.Size) {
 }
 
 func (c *colorRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(20, 20)
+	return fyne.NewSize(20, 32)
 }
 
 func (c *colorRenderer) Refresh() {
@@ -234,6 +250,7 @@ func (c *colorRenderer) Refresh() {
 		c.rect.StrokeColor = color.Transparent
 	}
 	c.rect.FillColor = c.c.color
+	c.rect.CornerRadius = theme.SelectionRadiusSize()
 
 	c.rect.Refresh()
 }
@@ -243,6 +260,27 @@ func (c *colorRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (c *colorRenderer) Destroy() {
+}
+
+type previewTheme struct {
+	t fyne.Theme
+	v fyne.ThemeVariant
+}
+
+func (p *previewTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	return p.t.Color(n, p.v)
+}
+
+func (p *previewTheme) Font(s fyne.TextStyle) fyne.Resource {
+	return p.t.Font(s)
+}
+
+func (p *previewTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
+	return p.t.Icon(n)
+}
+
+func (p *previewTheme) Size(n fyne.ThemeSizeName) float32 {
+	return p.t.Size(n)
 }
 
 func showOverlay(c fyne.Canvas) {
@@ -259,9 +297,9 @@ func showOverlay(c fyne.Canvas) {
 	content.Resize(content.MinSize())
 	content.Move(fyne.NewPos(theme.Padding(), theme.Padding()))
 
-	over := container.NewMax(
-		canvas.NewRectangle(theme.ShadowColor()), fyne.NewContainerWithLayout(layout.NewCenterLayout(),
-			wrap))
+	over := container.NewStack(
+		canvas.NewRectangle(theme.ShadowColor()), container.NewCenter(wrap),
+	)
 
 	c.Overlays().Add(over)
 	c.Focus(username)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
@@ -41,6 +42,19 @@ func TestForm_Append(t *testing.T) {
 	form.AppendItem(item)
 	assert.True(t, len(form.Items) == 3)
 	assert.Equal(t, item, form.Items[2])
+}
+
+func TestForm_Append_Items(t *testing.T) {
+	form := &Form{Items: []*FormItem{{Text: "test1", Widget: NewEntry()}}}
+	assert.Equal(t, 1, len(form.Items))
+	renderer := test.WidgetRenderer(form)
+
+	form.Items = append(form.Items, NewFormItem("test2", NewEntry()))
+	assert.True(t, len(form.Items) == 2)
+
+	form.Refresh()
+	c := renderer.Objects()[0].(*fyne.Container).Objects[0].(*fyne.Container)
+	assert.Equal(t, "test2", c.Objects[2].(*canvas.Text).Text)
 }
 
 func TestForm_CustomButtonsText(t *testing.T) {
@@ -104,11 +118,11 @@ func TestForm_ChangeText(t *testing.T) {
 
 	renderer := test.WidgetRenderer(form)
 	c := renderer.Objects()[0].(*fyne.Container).Objects[0].(*fyne.Container)
-	assert.Equal(t, "Test", c.Objects[0].(*Label).Text)
+	assert.Equal(t, "Test", c.Objects[0].(*canvas.Text).Text)
 
 	item.Text = "Changed"
 	form.Refresh()
-	assert.Equal(t, "Changed", c.Objects[0].(*Label).Text)
+	assert.Equal(t, "Changed", c.Objects[0].(*canvas.Text).Text)
 }
 
 func TestForm_ChangeTheme(t *testing.T) {
@@ -118,7 +132,7 @@ func TestForm_ChangeTheme(t *testing.T) {
 	form := &Form{
 		Items: []*FormItem{
 			{Text: "test1", Widget: NewEntry()},
-			{Text: "test2", Widget: NewEntry()},
+			{Text: "test2", Widget: NewLabel("static")},
 		},
 		OnSubmit: func() {}, OnCancel: func() {}}
 	w := test.NewWindow(form)
@@ -128,15 +142,32 @@ func TestForm_ChangeTheme(t *testing.T) {
 
 	test.WithTestTheme(t, func() {
 		form.Refresh()
-		w.Resize(form.MinSize().Add(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)))
+		w.Resize(form.MinSize().Add(fyne.NewSize(theme.InnerPadding(), theme.InnerPadding())))
 		test.AssertImageMatches(t, "form/theme_changed.png", w.Canvas().Capture())
 	})
 }
 
-func TestForm_Hints(t *testing.T) {
-	app := test.NewApp()
+func TestForm_Disabled(t *testing.T) {
+	test.NewApp()
 	defer test.NewApp()
-	app.Settings().SetTheme(theme.LightTheme())
+	test.ApplyTheme(t, theme.LightTheme())
+
+	disabled := NewEntry()
+	disabled.Disable()
+	f := NewForm(
+		NewFormItem("Form Item 1", NewEntry()),
+		NewFormItem("Form Item 2", disabled))
+
+	w := test.NewWindow(f)
+	defer w.Close()
+
+	test.AssertImageMatches(t, "form/disabled.png", w.Canvas().Capture())
+}
+
+func TestForm_Hints(t *testing.T) {
+	test.NewApp()
+	defer test.NewApp()
+	test.ApplyTheme(t, theme.LightTheme())
 
 	entry1 := &Entry{}
 	entry2 := &Entry{Validator: validation.NewRegexp(`^\w{3}-\w{5}$`, "Input is not valid"), Text: "wrong"}
@@ -159,9 +190,9 @@ func TestForm_Hints(t *testing.T) {
 }
 
 func TestForm_Validation(t *testing.T) {
-	app := test.NewApp()
+	test.NewApp()
 	defer test.NewApp()
-	app.Settings().SetTheme(theme.LightTheme())
+	test.ApplyTheme(t, theme.LightTheme())
 
 	entry1 := &Entry{Validator: validation.NewRegexp(`^\d{2}-\w{4}$`, "Input is not valid"), Text: "15-true"}
 	entry2 := &Entry{Validator: validation.NewRegexp(`^\w{3}-\w{5}$`, "Input is not valid"), Text: "wrong"}
@@ -191,9 +222,9 @@ func TestForm_Validation(t *testing.T) {
 }
 
 func TestForm_EntryValidation_FirstTypeValid(t *testing.T) {
-	app := test.NewApp()
+	test.NewApp()
 	defer test.NewApp()
-	app.Settings().SetTheme(theme.LightTheme())
+	test.ApplyTheme(t, theme.LightTheme())
 
 	notEmptyValidator := func(s string) error {
 		if s == "" {
@@ -213,9 +244,6 @@ func TestForm_EntryValidation_FirstTypeValid(t *testing.T) {
 	w := test.NewWindow(form)
 	defer w.Close()
 
-	assert.Equal(t, errFormItemInitialState, entry1.validationError)
-	assert.Equal(t, errFormItemInitialState, entry2.validationError)
-
 	test.AssertImageMatches(t, "form/validation_entry_first_type_initial.png", w.Canvas().Capture())
 
 	test.Type(entry1, "H")
@@ -233,10 +261,78 @@ func TestForm_EntryValidation_FirstTypeValid(t *testing.T) {
 	test.AssertImageMatches(t, "form/validation_entry_first_type_invalid.png", w.Canvas().Capture())
 }
 
-func TestForm_HintsRendered(t *testing.T) {
-	app := test.NewApp()
+func TestForm_DisableEnable(t *testing.T) {
+	test.NewApp()
 	defer test.NewApp()
-	app.Settings().SetTheme(theme.LightTheme())
+	test.ApplyTheme(t, theme.LightTheme())
+
+	form := &Form{
+		Items: []*FormItem{
+			{Text: "test1", Widget: NewEntry()},
+		},
+		OnSubmit: func() {}, OnCancel: func() {}}
+	w := test.NewWindow(form)
+	defer w.Close()
+
+	if form.Disabled() {
+		t.Error("form.Disabled() returned true when it should have been false")
+	}
+
+	test.AssertImageMatches(t, "form/disable_initial.png", w.Canvas().Capture())
+
+	form.Disable()
+
+	if !form.Disabled() {
+		t.Error("form.Disabled() returned false when it should have been true")
+	}
+
+	test.AssertImageMatches(t, "form/disable_disabled.png", w.Canvas().Capture())
+
+	form.Enable()
+
+	if form.Disabled() {
+		t.Error("form.Disabled() returned true when it should have been false")
+	}
+
+	test.AssertImageMatches(t, "form/disable_re_enabled.png", w.Canvas().Capture())
+}
+
+func TestForm_Disable_Validation(t *testing.T) {
+	test.NewApp()
+	defer test.NewApp()
+	test.ApplyTheme(t, theme.LightTheme())
+
+	entry := &Entry{Validator: validation.NewRegexp(`^\d{2}-\w{4}$`, "Input is not valid"), Text: "wrong"}
+
+	form := &Form{Items: []*FormItem{{Text: "test", Widget: entry}}, OnSubmit: func() {}, OnCancel: func() {}}
+	w := test.NewWindow(form)
+	defer w.Close()
+
+	test.AssertImageMatches(t, "form/disable_validation_initial.png", w.Canvas().Capture())
+
+	form.Disable()
+
+	test.AssertImageMatches(t, "form/disable_validation_disabled_invalid.png", w.Canvas().Capture())
+
+	form.Enable()
+
+	test.AssertImageMatches(t, "form/disable_validation_enabled_invalid.png", w.Canvas().Capture())
+
+	entry.SetText("15-true")
+	test.AssertImageMatches(t, "form/disable_validation_enabled_valid.png", w.Canvas().Capture())
+
+	// ensure we don't re-enable the form when entering something valid
+	entry.SetText("invalid")
+	form.Disable()
+	entry.SetText("15-true")
+
+	test.AssertImageMatches(t, "form/disable_validation_disabled_valid.png", w.Canvas().Capture())
+}
+
+func TestForm_HintsRendered(t *testing.T) {
+	test.NewApp()
+	defer test.NewApp()
+	test.ApplyTheme(t, theme.LightTheme())
 
 	f := NewForm()
 
@@ -258,4 +354,95 @@ func TestForm_HintsRendered(t *testing.T) {
 	defer w.Close()
 
 	test.AssertImageMatches(t, "form/hints_rendered.png", w.Canvas().Capture())
+}
+
+func TestForm_Validate(t *testing.T) {
+	entry1 := &Entry{Validator: validation.NewRegexp(`^\d{2}-\w{4}$`, "Input is not valid 1"), Text: "15-true"}
+	entry2 := &Entry{Validator: validation.NewRegexp(`^\w{3}-\w{5}$`, "Input is not valid 2"), Text: "wrong"}
+
+	form := &Form{
+		Items: []*FormItem{
+			{Text: "First", Widget: entry1},
+			{Text: "Second", Widget: entry2},
+		},
+	}
+
+	err := form.Validate()
+	if assert.Error(t, err) {
+		assert.Equal(t, "Input is not valid 2", err.Error())
+	}
+
+	entry1.SetText("incorrect")
+	err = form.Validate()
+	if assert.Error(t, err) {
+		assert.Equal(t, "Input is not valid 1", err.Error())
+	}
+
+	entry1.SetText("15-true")
+	err = form.Validate()
+	if assert.Error(t, err) {
+		assert.Equal(t, "Input is not valid 2", err.Error())
+	}
+
+	entry2.SetText("not-wrong")
+	err = form.Validate()
+	assert.NoError(t, err)
+
+}
+
+func TestForm_SetOnValidationChanged(t *testing.T) {
+	entry1 := &Entry{Validator: validation.NewRegexp(`^\d{2}-\w{4}$`, "Input is not valid"), Text: "15-true"}
+
+	form := &Form{
+		Items: []*FormItem{
+			{Text: "First", Widget: entry1},
+		},
+	}
+
+	validationError := false
+
+	form.SetOnValidationChanged(func(err error) {
+		validationError = err != nil
+	})
+
+	form.CreateRenderer()
+
+	entry1.SetText("incorrect")
+	assert.Error(t, form.Validate())
+	assert.True(t, validationError)
+
+	entry1.SetText("15-true")
+	assert.NoError(t, form.Validate())
+	assert.False(t, validationError)
+
+}
+
+func TestForm_ExtendedEntry(t *testing.T) {
+	extendedEntry := NewSelectEntry([]string{""})
+
+	test.NewApp()
+	defer test.NewApp()
+
+	form := &Form{
+		Items: []*FormItem{
+			{Text: "Extended entry", Widget: extendedEntry},
+		},
+	}
+	w := test.NewWindow(form)
+	defer w.Close()
+
+	test.AssertRendersToMarkup(t, "form/extended_entry.xml", w.Canvas())
+}
+
+func TestForm_RefreshFromStructInit(t *testing.T) {
+	form := &Form{
+		Items: []*FormItem{
+			{Text: "Entry", Widget: NewEntry()},
+		},
+	}
+
+	assert.NotPanics(t, func() {
+		form.Refresh()
+	})
+
 }

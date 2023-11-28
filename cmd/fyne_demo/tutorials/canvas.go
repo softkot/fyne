@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/cmd/fyne_demo/data"
+	"fyne.io/fyne/v2/container"
 )
 
 func rgbGradient(x, y, w, h int) color.Color {
@@ -32,11 +32,16 @@ func canvasScreen(_ fyne.Window) fyne.CanvasObject {
 		}
 	}()
 
-	return fyne.NewContainerWithLayout(layout.NewGridWrapLayout(fyne.NewSize(90, 90)),
-		canvas.NewImageFromResource(theme.FyneLogo()),
+	return container.NewGridWrap(fyne.NewSize(90, 90),
+		canvas.NewImageFromResource(data.FyneLogo),
 		&canvas.Rectangle{FillColor: color.NRGBA{0x80, 0, 0, 0xff},
-			StrokeColor: color.NRGBA{0xff, 0xff, 0xff, 0xff},
+			StrokeColor: color.NRGBA{R: 255, G: 120, B: 0, A: 255},
 			StrokeWidth: 1},
+		&canvas.Rectangle{
+			FillColor:    color.NRGBA{R: 255, G: 200, B: 0, A: 180},
+			StrokeColor:  color.NRGBA{R: 255, G: 120, B: 0, A: 255},
+			StrokeWidth:  4.0,
+			CornerRadius: 20},
 		&canvas.Line{StrokeColor: color.NRGBA{0, 0, 0x80, 0xff}, StrokeWidth: 5},
 		&canvas.Circle{StrokeColor: color.NRGBA{0, 0, 0x80, 0xff},
 			FillColor:   color.NRGBA{0x30, 0x30, 0x30, 0x60},

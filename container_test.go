@@ -1,6 +1,7 @@
 package fyne
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,11 +9,27 @@ import (
 
 func TestContainer_Add(t *testing.T) {
 	box := new(dummyObject)
-	container := NewContainerWithoutLayout()
+	container := NewContainerWithLayout(new(customLayout))
 	assert.Equal(t, 0, len(container.Objects))
+	assert.Equal(t, float32(10), container.MinSize().Width)
+	assert.Equal(t, float32(0), container.MinSize().Height)
 
 	container.Add(box)
 	assert.Equal(t, 1, len(container.Objects))
+	assert.Equal(t, float32(10), container.MinSize().Width)
+	assert.Equal(t, float32(10), container.MinSize().Height)
+
+	oldLength := len(container.Objects)
+	container.Add(nil)
+	assert.Equal(t, oldLength, len(container.Objects))
+
+	box2 := new(dummyObject)
+	container.Add(box2)
+	assert.Equal(t, 2, len(container.Objects))
+	assert.Equal(t, float32(10), container.MinSize().Width)
+	assert.Equal(t, float32(20), container.MinSize().Height)
+	assert.Equal(t, float32(0), box2.Position().X)
+	assert.Equal(t, float32(10), box2.Position().Y)
 }
 
 func TestContainer_CustomLayout(t *testing.T) {
@@ -75,11 +92,63 @@ func TestContainer_NilLayout(t *testing.T) {
 }
 
 func TestContainer_Remove(t *testing.T) {
-	box := new(dummyObject)
-	container := NewContainerWithoutLayout(box)
-	assert.Equal(t, 1, len(container.Objects))
+	box1 := new(dummyObject)
+	box2 := new(dummyObject)
+	container := NewContainerWithLayout(new(customLayout), box1, box2)
+	assert.Equal(t, 2, len(container.Objects))
+	assert.Equal(t, float32(10), container.MinSize().Width)
+	assert.Equal(t, float32(20), container.MinSize().Height)
 
-	container.Remove(box)
+	container.Remove(box1)
+	assert.Equal(t, 1, len(container.Objects))
+	assert.Equal(t, float32(10), container.MinSize().Width)
+	assert.Equal(t, float32(10), container.MinSize().Height)
+	assert.Equal(t, float32(0), box2.Position().X)
+	assert.Equal(t, float32(0), box2.Position().Y)
+}
+
+func TestContainer_Remove_Race(t *testing.T) {
+	var objs []CanvasObject
+	for i := 0; i < 100; i++ {
+		objs = append(objs, new(dummyObject))
+	}
+
+	container := NewContainerWithLayout(new(customLayout), objs...)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(100)
+	for _, o := range objs {
+		rmo := o
+		go func() {
+			container.Remove(rmo)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, 0, len(container.Objects))
+}
+
+func TestContainer_Add_Race(t *testing.T) {
+	container := NewContainerWithLayout(new(customLayout))
+	wg := &sync.WaitGroup{}
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			container.Add(new(dummyObject))
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	assert.Equal(t, 100, len(container.Objects))
+}
+
+func TestContainer_RemoveAll(t *testing.T) {
+	box1 := new(dummyObject)
+	box2 := new(dummyObject)
+	container := NewContainerWithLayout(new(customLayout), box1, box2)
+	assert.Equal(t, 2, len(container.Objects))
+
+	container.RemoveAll()
 	assert.Equal(t, 0, len(container.Objects))
 }
 
@@ -100,13 +169,16 @@ type customLayout struct {
 }
 
 func (c *customLayout) Layout(objs []CanvasObject, size Size) {
+	y := float32(0)
 	for _, child := range objs {
 		child.Resize(size)
+		child.Move(NewPos(0, y))
+		y += 10
 	}
 }
 
-func (c *customLayout) MinSize(_ []CanvasObject) Size {
-	return NewSize(10, 10)
+func (c *customLayout) MinSize(objs []CanvasObject) Size {
+	return NewSize(10, float32(10*len(objs)))
 }
 
 type dummyObject struct {
@@ -115,37 +187,37 @@ type dummyObject struct {
 	hidden bool
 }
 
-func (d *dummyObject) Size() Size {
-	return d.size
-}
-
-func (d *dummyObject) Resize(size Size) {
-	d.size = size
-}
-
-func (d *dummyObject) Position() Position {
-	return d.pos
-}
-
-func (d *dummyObject) Move(pos Position) {
-	d.pos = pos
+func (d *dummyObject) Hide() {
+	d.hidden = true
 }
 
 func (d *dummyObject) MinSize() Size {
 	return NewSize(5, 5)
 }
 
-func (d *dummyObject) Visible() bool {
-	return !d.hidden
+func (d *dummyObject) Move(pos Position) {
+	d.pos = pos
+}
+
+func (d *dummyObject) Position() Position {
+	return d.pos
+}
+
+func (d *dummyObject) Refresh() {
+}
+
+func (d *dummyObject) Resize(size Size) {
+	d.size = size
 }
 
 func (d *dummyObject) Show() {
 	d.hidden = false
 }
 
-func (d *dummyObject) Hide() {
-	d.hidden = true
+func (d *dummyObject) Size() Size {
+	return d.size
 }
 
-func (d *dummyObject) Refresh() {
+func (d *dummyObject) Visible() bool {
+	return !d.hidden
 }

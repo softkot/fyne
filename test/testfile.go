@@ -3,7 +3,6 @@ package test
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -40,7 +39,7 @@ func (f *file) Name() string {
 }
 
 func (f *file) URI() fyne.URI {
-	return storage.NewURI("file://" + f.path)
+	return storage.NewFileURI(f.path)
 }
 
 func openFile(uri fyne.URI, create bool) (*file, error) {
@@ -88,7 +87,7 @@ func (d *directory) List() ([]fyne.URI, error) {
 	}
 
 	path := d.String()[len(d.Scheme())+3 : len(d.String())]
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +95,7 @@ func (d *directory) List() ([]fyne.URI, error) {
 	urilist := []fyne.URI{}
 
 	for _, f := range files {
-		uri := storage.NewURI("file://" + filepath.Join(path, f.Name()))
+		uri := storage.NewFileURI(filepath.Join(path, f.Name()))
 		urilist = append(urilist, uri)
 	}
 

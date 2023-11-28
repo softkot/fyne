@@ -2,13 +2,16 @@ package widget_test
 
 import (
 	"image/color"
+	"runtime"
 	"testing"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -20,6 +23,7 @@ func TestEntry_Binding(t *testing.T) {
 	entry := widget.NewEntry()
 	entry.SetText("Init")
 	assert.Equal(t, "Init", entry.Text)
+	waitForBinding() // this time it is the de-echo before binding
 
 	str := binding.NewString()
 	entry.Bind(str)
@@ -39,6 +43,58 @@ func TestEntry_Binding(t *testing.T) {
 	entry.Unbind()
 	waitForBinding()
 	assert.Equal(t, "Typed", entry.Text)
+}
+
+func TestEntry_Binding_Replace(t *testing.T) {
+	entry := widget.NewEntry()
+	str := binding.NewString()
+	_ = str.Set("Content")
+	entry.Bind(str)
+	waitForBinding()
+	assert.Equal(t, "Content", entry.Text)
+
+	typeKeys(entry, fyne.KeyRight, fyne.KeyRight, keyShiftLeftDown, fyne.KeyRight, fyne.KeyRight, keyShiftLeftUp)
+	assert.Equal(t, "nt", entry.SelectedText())
+
+	test.Type(entry, "g")
+	assert.Equal(t, "Cogent", entry.Text)
+}
+
+func TestEntry_Clicked(t *testing.T) {
+	entry, window := setupImageTest(t, true)
+	defer teardownImageTest(window)
+	c := window.Canvas()
+
+	entry.SetText("MMM\nWWW\n")
+	test.AssertRendersToMarkup(t, "entry/tapped_initial.xml", c)
+
+	entry.FocusGained()
+	test.AssertRendersToMarkup(t, "entry/tapped_focused.xml", c)
+
+	testCharSize := theme.TextSize()
+	pos := fyne.NewPos(entryOffset+theme.Padding()+testCharSize*1.5, entryOffset+theme.Padding()+testCharSize/2) // tap in the middle of the 2nd "M"
+	clickCanvas(window.Canvas(), pos)
+	test.AssertRendersToMarkup(t, "entry/tapped_tapped_2nd_m.xml", c)
+	assert.Equal(t, 0, entry.CursorRow)
+	assert.Equal(t, 1, entry.CursorColumn)
+
+	pos = fyne.NewPos(entryOffset+theme.Padding()+testCharSize*2.5, entryOffset+theme.Padding()+testCharSize/2) // tap in the middle of the 3rd "M"
+	clickCanvas(window.Canvas(), pos)
+	test.AssertRendersToMarkup(t, "entry/tapped_tapped_3rd_m.xml", c)
+	assert.Equal(t, 0, entry.CursorRow)
+	assert.Equal(t, 2, entry.CursorColumn)
+
+	pos = fyne.NewPos(entryOffset+theme.Padding()+testCharSize*4, entryOffset+theme.Padding()+testCharSize/2) // tap after text
+	clickCanvas(window.Canvas(), pos)
+	test.AssertRendersToMarkup(t, "entry/tapped_tapped_after_last_col.xml", c)
+	assert.Equal(t, 0, entry.CursorRow)
+	assert.Equal(t, 3, entry.CursorColumn)
+
+	pos = fyne.NewPos(entryOffset+testCharSize, entryOffset+testCharSize*4) // tap below rows
+	clickCanvas(window.Canvas(), pos)
+	test.AssertRendersToMarkup(t, "entry/tapped_tapped_after_last_row.xml", c)
+	assert.Equal(t, 2, entry.CursorRow)
+	assert.Equal(t, 0, entry.CursorColumn)
 }
 
 func TestEntry_CursorColumn(t *testing.T) {
@@ -65,6 +121,24 @@ func TestEntry_CursorColumn(t *testing.T) {
 	assert.Equal(t, 0, entry.CursorColumn)
 }
 
+func TestEntry_CursorColumn_Ends(t *testing.T) {
+	entry := widget.NewEntry()
+	entry.SetText("Hello")
+	assert.Equal(t, 0, entry.CursorColumn)
+
+	// down should go to end for last line
+	down := &fyne.KeyEvent{Name: fyne.KeyDown}
+	entry.TypedKey(down)
+	assert.Equal(t, 5, entry.CursorColumn)
+	assert.Equal(t, 0, entry.CursorRow)
+
+	// up should go to start for first line
+	up := &fyne.KeyEvent{Name: fyne.KeyUp}
+	entry.TypedKey(up)
+	assert.Equal(t, 0, entry.CursorColumn)
+	assert.Equal(t, 0, entry.CursorRow)
+}
+
 func TestEntry_CursorColumn_Jump(t *testing.T) {
 	entry := widget.NewMultiLineEntry()
 	entry.SetText("a\nbc")
@@ -83,6 +157,53 @@ func TestEntry_CursorColumn_Jump(t *testing.T) {
 	entry.TypedKey(up)
 	assert.Equal(t, 0, entry.CursorRow)
 	assert.Equal(t, 1, entry.CursorColumn)
+}
+
+func TestEntry_Control_Word(t *testing.T) {
+	entry := widget.NewMultiLineEntry()
+	entry.SetText("a\nbc")
+	entry.CursorRow = 0
+	entry.CursorColumn = 0
+
+	moveWordModifier := fyne.KeyModifierShortcutDefault
+	if runtime.GOOS == "darwin" {
+		moveWordModifier = fyne.KeyModifierAlt
+	}
+
+	// ctrl-right to move on
+	nextWord := &desktop.CustomShortcut{KeyName: fyne.KeyRight, Modifier: moveWordModifier}
+	entry.TypedShortcut(nextWord)
+	assert.Equal(t, 0, entry.CursorRow)
+	assert.Equal(t, 1, entry.CursorColumn)
+	entry.TypedShortcut(nextWord)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 0, entry.CursorColumn)
+	entry.TypedShortcut(nextWord)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 2, entry.CursorColumn)
+
+	// ctrl-left to move back
+	prevWord := &desktop.CustomShortcut{KeyName: fyne.KeyLeft, Modifier: moveWordModifier}
+	entry.TypedShortcut(prevWord)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 0, entry.CursorColumn)
+	entry.TypedShortcut(prevWord)
+	assert.Equal(t, 0, entry.CursorRow)
+	assert.Equal(t, 1, entry.CursorColumn)
+
+	// select word
+	entry.SetText("word1 word2 word3")
+	entry.CursorRow = 0
+	entry.CursorColumn = 3
+	selectNextWord := &desktop.CustomShortcut{KeyName: fyne.KeyRight, Modifier: moveWordModifier | fyne.KeyModifierShift}
+	entry.TypedShortcut(selectNextWord)
+	assert.Equal(t, "d1", entry.SelectedText())
+	entry.TypedShortcut(selectNextWord)
+	assert.Equal(t, "d1 word2", entry.SelectedText())
+
+	// unselect when no shift press
+	entry.TypedShortcut(nextWord)
+	assert.Equal(t, "", entry.SelectedText())
 }
 
 func TestEntry_CursorColumn_Wrap(t *testing.T) {
@@ -112,17 +233,26 @@ func TestEntry_CursorColumn_Wrap(t *testing.T) {
 func TestEntry_CursorColumn_Wrap2(t *testing.T) {
 	entry := widget.NewMultiLineEntry()
 	entry.Wrapping = fyne.TextWrapWord
-	entry.Resize(fyne.NewSize(64, 64))
 	entry.SetText("1234")
 	entry.CursorColumn = 3
+
+	w := test.NewWindow(entry)
+	w.Resize(fyne.NewSize(72, 64))
+
 	test.Type(entry, "a")
 	test.Type(entry, "b")
 	test.Type(entry, "c")
 	assert.Equal(t, 0, entry.CursorColumn)
 	assert.Equal(t, 1, entry.CursorRow)
-	w := test.NewWindow(entry)
 	w.Resize(fyne.NewSize(70, 70))
+	assert.Equal(t, 1, entry.CursorColumn)
 	test.AssertImageMatches(t, "entry/wrap_multi_line_cursor.png", w.Canvas().Capture())
+
+	typeKeys(entry, keyShiftLeftDown, fyne.KeyLeft, keyShiftLeftUp)
+	assert.Equal(t, "c", entry.SelectedText())
+	assert.Equal(t, 0, entry.CursorColumn)
+	w.Resize(fyne.NewSize(64, 78))
+	assert.Equal(t, "c", entry.SelectedText())
 }
 
 func TestEntry_CursorPasswordRevealer(t *testing.T) {
@@ -231,6 +361,11 @@ func TestEntry_EmptySelection(t *testing.T) {
 	typeKeys(entry, fyne.KeyRight, keyShiftLeftDown, fyne.KeyRight, fyne.KeyLeft, keyShiftLeftUp)
 	assert.Equal(t, "", entry.SelectedText())
 	assert.Equal(t, 1, entry.CursorColumn)
+
+	// manually setting to empty selection
+	typeKeys(entry, keyShiftLeftDown, fyne.KeyRight)
+	entry.CursorColumn = 1
+	assert.Equal(t, "", entry.SelectedText())
 }
 
 func TestEntry_Focus(t *testing.T) {
@@ -293,10 +428,11 @@ func TestEntry_MinSize(t *testing.T) {
 	assert.Equal(t, entry.MinSize().Width, min.Width)
 	assert.Equal(t, entry.MinSize().Height, min.Height)
 
-	assert.True(t, min.Width > theme.Padding()*2)
-	assert.True(t, min.Height > theme.Padding()*2)
+	assert.True(t, min.Width > theme.InnerPadding())
+	assert.True(t, min.Height > theme.InnerPadding())
 
 	entry.Wrapping = fyne.TextWrapOff
+	entry.Scroll = container.ScrollNone
 	entry.Refresh()
 	assert.Greater(t, entry.MinSize().Width, min.Width)
 
@@ -312,10 +448,11 @@ func TestEntryMultiline_MinSize(t *testing.T) {
 	assert.Equal(t, entry.MinSize().Width, min.Width)
 	assert.Equal(t, entry.MinSize().Height, min.Height)
 
-	assert.True(t, min.Width > theme.Padding()*2)
-	assert.True(t, min.Height > theme.Padding()*2)
+	assert.True(t, min.Width > theme.InnerPadding())
+	assert.True(t, min.Height > theme.InnerPadding())
 
 	entry.Wrapping = fyne.TextWrapOff
+	entry.Scroll = container.ScrollNone
 	entry.Refresh()
 	assert.Greater(t, entry.MinSize().Width, min.Width)
 
@@ -326,6 +463,19 @@ func TestEntryMultiline_MinSize(t *testing.T) {
 	min = entry.MinSize()
 	entry.ActionItem = canvas.NewCircle(color.Black)
 	assert.Equal(t, min.Add(fyne.NewSize(theme.IconInlineSize()+theme.Padding(), 0)), entry.MinSize())
+}
+
+func TestEntryMultiline_SetMinRowsVisible(t *testing.T) {
+	entry := widget.NewMultiLineEntry()
+	min := entry.MinSize()
+	entry.SetText("Hello")
+	assert.Equal(t, entry.MinSize().Height, min.Height)
+
+	entry.SetMinRowsVisible(2)
+	assert.Less(t, entry.MinSize().Height, min.Height)
+
+	entry.SetMinRowsVisible(5)
+	assert.Greater(t, entry.MinSize().Height, min.Height)
 }
 
 func TestEntry_MultilineSelect(t *testing.T) {
@@ -384,6 +534,15 @@ func TestEntry_Notify(t *testing.T) {
 	}
 	entry.SetText("Test")
 
+	assert.True(t, changed)
+
+	changed = false
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyDelete})
+	assert.True(t, changed)
+
+	changed = false
+	entry.CursorColumn = 1
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyBackspace})
 	assert.True(t, changed)
 }
 
@@ -456,12 +615,40 @@ func TestEntry_OnKeyDown_Backspace(t *testing.T) {
 	assert.Equal(t, 0, entry.CursorRow)
 	assert.Equal(t, 2, entry.CursorColumn)
 
-	key := &fyne.KeyEvent{Name: fyne.KeyBackspace}
-	entry.TypedKey(key)
+	backspace := &fyne.KeyEvent{Name: fyne.KeyBackspace}
+	entry.TypedKey(backspace)
 
 	assert.Equal(t, "H", entry.Text)
 	assert.Equal(t, 0, entry.CursorRow)
 	assert.Equal(t, 1, entry.CursorColumn)
+
+	entry = widget.NewMultiLineEntry()
+	entry.SetText("Line\n2b\n")
+	down := &fyne.KeyEvent{Name: fyne.KeyDown}
+	entry.TypedKey(down)
+	entry.TypedKey(right)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 1, entry.CursorColumn)
+
+	entry.TypedKey(backspace)
+	assert.Equal(t, "Line\nb\n", entry.Text)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 0, entry.CursorColumn)
+
+	entry.CursorRow = 0
+	entry.CursorColumn = 0
+	entry.Wrapping = fyne.TextWrapWord
+	entry.SetText("Line 2b")
+	entry.Resize(fyne.NewSize(50, 50))
+	entry.TypedKey(down)
+	entry.TypedKey(right)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 1, entry.CursorColumn)
+
+	entry.TypedKey(backspace)
+	assert.Equal(t, "Line b", entry.Text)
+	assert.Equal(t, 1, entry.CursorRow)
+	assert.Equal(t, 0, entry.CursorColumn)
 }
 
 func TestEntry_OnKeyDown_BackspaceBeyondText(t *testing.T) {
@@ -569,7 +756,7 @@ func TestEntry_OnKeyDown_DeleteNewline(t *testing.T) {
 }
 
 func TestEntry_OnKeyDown_HomeEnd(t *testing.T) {
-	entry := &widget.Entry{}
+	entry := widget.NewEntry()
 	entry.SetText("Hi")
 	assert.Equal(t, 0, entry.CursorRow)
 	assert.Equal(t, 0, entry.CursorColumn)
@@ -583,6 +770,18 @@ func TestEntry_OnKeyDown_HomeEnd(t *testing.T) {
 	entry.TypedKey(home)
 	assert.Equal(t, 0, entry.CursorRow)
 	assert.Equal(t, 0, entry.CursorColumn)
+
+	if runtime.GOOS == "darwin" {
+		endShortcut := &desktop.CustomShortcut{KeyName: fyne.KeyRight, Modifier: fyne.KeyModifierSuper}
+		entry.TypedShortcut(endShortcut)
+		assert.Equal(t, 0, entry.CursorRow)
+		assert.Equal(t, 2, entry.CursorColumn)
+
+		homeShortcut := &desktop.CustomShortcut{KeyName: fyne.KeyLeft, Modifier: fyne.KeyModifierSuper}
+		entry.TypedShortcut(homeShortcut)
+		assert.Equal(t, 0, entry.CursorRow)
+		assert.Equal(t, 0, entry.CursorColumn)
+	}
 }
 
 func TestEntry_OnKeyDown_Insert(t *testing.T) {
@@ -800,7 +999,7 @@ func TestEntry_PasteUnicode(t *testing.T) {
 }
 
 func TestEntry_Placeholder(t *testing.T) {
-	entry := &widget.Entry{}
+	entry := &widget.Entry{Scroll: container.ScrollNone}
 	entry.Text = "Text"
 	entry.PlaceHolder = "Placehold"
 
@@ -1162,6 +1361,23 @@ func TestEntry_SetPlaceHolder(t *testing.T) {
 	test.AssertRendersToMarkup(t, "entry/set_placeholder_replaced.xml", c)
 }
 
+func TestEntry_SetPlaceHolder_ByField(t *testing.T) {
+	entry, window := setupImageTest(t, false)
+	defer teardownImageTest(window)
+	c := window.Canvas()
+
+	assert.Equal(t, 0, len(entry.Text))
+
+	entry.PlaceHolder = "Test"
+	entry.Refresh()
+	assert.Equal(t, 0, len(entry.Text))
+	test.AssertRendersToMarkup(t, "entry/set_placeholder_set.xml", c)
+
+	entry.SetText("Hi")
+	assert.Equal(t, 2, len(entry.Text))
+	test.AssertRendersToMarkup(t, "entry/set_placeholder_replaced.xml", c)
+}
+
 func TestEntry_Disable_KeyDown(t *testing.T) {
 	entry := widget.NewEntry()
 
@@ -1262,6 +1478,22 @@ func TestEntry_SetText_Underflow(t *testing.T) {
 	assert.Equal(t, "", entry.Text)
 }
 
+func TestEntry_SetText_Overflow_Multiline(t *testing.T) {
+	entry := widget.NewEntry()
+	entry.MultiLine = true
+
+	assert.Equal(t, 0, entry.CursorColumn)
+	assert.Equal(t, 0, entry.CursorRow)
+
+	entry.SetText("ab\ncd\nef")
+	typeKeys(entry, fyne.KeyDown, fyne.KeyDown, fyne.KeyRight)
+	assert.Equal(t, 1, entry.CursorColumn)
+	assert.Equal(t, 2, entry.CursorRow)
+	entry.SetText("AB\nAAAA")
+	assert.Equal(t, 4, entry.CursorColumn)
+	assert.Equal(t, 1, entry.CursorRow)
+}
+
 func TestEntry_SetTextStyle(t *testing.T) {
 	entry, window := setupImageTest(t, false)
 	defer teardownImageTest(window)
@@ -1279,6 +1511,22 @@ func TestEntry_SetTextStyle(t *testing.T) {
 	entry.TextStyle = fyne.TextStyle{Italic: true}
 	entry.Refresh()
 	test.AssertRendersToMarkup(t, "entry/set_text_style_italic.xml", c)
+}
+
+func TestEntry_Append(t *testing.T) {
+	entry := widget.NewEntry()
+
+	entry.Append("abc")
+	assert.Equal(t, entry.Text, "abc")
+	entry.Append(" def")
+	assert.Equal(t, entry.Text, "abc def")
+
+	entry.SetText("")
+	entry.MultiLine = true
+
+	entry.Append("first line")
+	entry.Append("\nsecond line")
+	assert.Equal(t, entry.Text, "first line\nsecond line")
 }
 
 func TestEntry_Submit(t *testing.T) {
@@ -1328,74 +1576,62 @@ func TestEntry_Submit(t *testing.T) {
 	})
 	t.Run("NoCallback", func(t *testing.T) {
 		entry := &widget.Entry{}
+		resetEntry := func() {
+			entry.SetText("")
+		}
 		t.Run("SingleLine_Enter", func(t *testing.T) {
+			resetEntry()
 			entry.MultiLine = false
 			entry.SetText("a")
 			entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
 			assert.Equal(t, "a", entry.Text)
 		})
 		t.Run("SingleLine_Return", func(t *testing.T) {
+			resetEntry()
 			entry.MultiLine = false
 			entry.SetText("b")
 			entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 			assert.Equal(t, "b", entry.Text)
 		})
 		t.Run("MultiLine_ShiftEnter", func(t *testing.T) {
+			resetEntry()
 			entry.MultiLine = true
 			entry.SetText("c")
 			typeKeys(entry, keyShiftLeftDown, fyne.KeyReturn, keyShiftLeftUp)
 			assert.Equal(t, "\nc", entry.Text)
 			entry.SetText("d")
+			entry.CursorRow = 0
+			entry.CursorColumn = 0
 			typeKeys(entry, keyShiftRightDown, fyne.KeyReturn, keyShiftRightUp)
 			assert.Equal(t, "\nd", entry.Text)
 		})
 		t.Run("MultiLine_ShiftReturn", func(t *testing.T) {
+			resetEntry()
 			entry.MultiLine = true
 			entry.SetText("e")
 			typeKeys(entry, keyShiftLeftDown, fyne.KeyReturn, keyShiftLeftUp)
 			assert.Equal(t, "\ne", entry.Text)
 			entry.SetText("f")
+			entry.CursorRow = 0
+			entry.CursorColumn = 0
 			typeKeys(entry, keyShiftRightDown, fyne.KeyReturn, keyShiftRightUp)
 			assert.Equal(t, "\nf", entry.Text)
 		})
 	})
 }
 
-func TestEntry_Tapped(t *testing.T) {
-	entry, window := setupImageTest(t, true)
-	defer teardownImageTest(window)
-	c := window.Canvas()
-
-	entry.SetText("MMM\nWWW\n")
-	test.AssertRendersToMarkup(t, "entry/tapped_initial.xml", c)
-
-	entry.FocusGained()
-	test.AssertRendersToMarkup(t, "entry/tapped_focused.xml", c)
-
-	testCharSize := theme.TextSize()
-	pos := fyne.NewPos(entryOffset+theme.Padding()+testCharSize*1.5, entryOffset+theme.Padding()+testCharSize/2) // tap in the middle of the 2nd "M"
-	test.TapCanvas(window.Canvas(), pos)
-	test.AssertRendersToMarkup(t, "entry/tapped_tapped_2nd_m.xml", c)
-	assert.Equal(t, 0, entry.CursorRow)
-	assert.Equal(t, 1, entry.CursorColumn)
-
-	pos = fyne.NewPos(entryOffset+theme.Padding()+testCharSize*2.5, entryOffset+theme.Padding()+testCharSize/2) // tap in the middle of the 3rd "M"
-	test.TapCanvas(window.Canvas(), pos)
-	test.AssertRendersToMarkup(t, "entry/tapped_tapped_3rd_m.xml", c)
-	assert.Equal(t, 0, entry.CursorRow)
-	assert.Equal(t, 2, entry.CursorColumn)
-
-	pos = fyne.NewPos(entryOffset+theme.Padding()+testCharSize*4, entryOffset+theme.Padding()+testCharSize/2) // tap after text
-	test.TapCanvas(window.Canvas(), pos)
-	test.AssertRendersToMarkup(t, "entry/tapped_tapped_after_last_col.xml", c)
-	assert.Equal(t, 0, entry.CursorRow)
-	assert.Equal(t, 3, entry.CursorColumn)
-
-	pos = fyne.NewPos(entryOffset+testCharSize, entryOffset+testCharSize*4) // tap below rows
-	test.TapCanvas(window.Canvas(), pos)
-	test.AssertRendersToMarkup(t, "entry/tapped_tapped_after_last_row.xml", c)
-	assert.Equal(t, 2, entry.CursorRow)
-	assert.Equal(t, 0, entry.CursorColumn)
+func TestTabable(t *testing.T) {
+	entry := &widget.Entry{}
+	t.Run("Multiline_Tab_Default", func(t *testing.T) {
+		entry.MultiLine = true
+		entry.SetText("a")
+		typeKeys(entry, fyne.KeyTab)
+		assert.Equal(t, "\ta", entry.Text)
+	})
+	t.Run("Singleline_Tab_Default", func(t *testing.T) {
+		entry.MultiLine = false
+		assert.False(t, entry.AcceptsTab())
+	})
 }
 
 func TestEntry_TappedSecondary(t *testing.T) {
@@ -1430,27 +1666,35 @@ func TestEntry_TappedSecondary(t *testing.T) {
 func TestEntry_TextWrap(t *testing.T) {
 	for name, tt := range map[string]struct {
 		multiLine bool
+		scroll    container.ScrollDirection
 		want      string
 		wrap      fyne.TextWrap
 	}{
 		"single line WrapOff": {
-			want: "entry/wrap_single_line_off.xml",
+			scroll: container.ScrollNone,
+			want:   "entry/wrap_single_line_off.xml",
 		},
 		"single line Truncate": {
 			wrap: fyne.TextTruncate,
 			want: "entry/wrap_single_line_truncate.xml",
 		},
-		// Disallowed - fallback to TextWrapTruncate (horizontal)
+		"single line Scroll": {
+			scroll: container.ScrollHorizontalOnly,
+			wrap:   fyne.TextWrapOff,
+			want:   "entry/wrap_single_line_truncate.xml",
+		},
+		// Disallowed - fallback to Scrollling (horizontal)
 		"single line WrapBreak": {
 			wrap: fyne.TextWrapBreak,
 			want: "entry/wrap_single_line_truncate.xml",
 		},
-		// Disallowed - fallback to TextWrapTruncate (horizontal)
+		// Disallowed - fallback to Scrolling (horizontal)
 		"single line WrapWord": {
 			wrap: fyne.TextWrapWord,
 			want: "entry/wrap_single_line_truncate.xml",
 		},
 		"multi line WrapOff": {
+			scroll:    container.ScrollNone,
 			multiLine: true,
 			want:      "entry/wrap_multi_line_off.xml",
 		},
@@ -1478,6 +1722,7 @@ func TestEntry_TextWrap(t *testing.T) {
 
 			c.Focus(e)
 			e.Wrapping = tt.wrap
+			e.Scroll = tt.scroll
 			if tt.multiLine {
 				e.SetText("A long text on short words w/o NLs or LFs.")
 			} else {
@@ -1495,6 +1740,7 @@ func TestEntry_TextWrap_Changed(t *testing.T) {
 
 	c.Focus(e)
 	e.Wrapping = fyne.TextWrapOff
+	e.Scroll = container.ScrollNone
 	e.SetText("Testing Wrapping")
 	test.AssertRendersToMarkup(t, "entry/wrap_single_line_off.xml", c)
 
@@ -1547,6 +1793,19 @@ func TestPasswordEntry_ActionItemSizeAndPlacement(t *testing.T) {
 	assert.Equal(t, fyne.NewPos(e.MinSize().Width-2*theme.Padding()-b.Size().Width, 2*theme.Padding()), b.Position())
 }
 
+func TestPasswordEntry_Disabled(t *testing.T) {
+	entry, window := setupPasswordTest(t)
+	defer teardownImageTest(window)
+	entry.Disable()
+
+	test.Tap(entry.ActionItem.(fyne.Tappable))
+	assert.True(t, entry.Password)
+
+	entry.Enable()
+	test.Tap(entry.ActionItem.(fyne.Tappable))
+	assert.False(t, entry.Password)
+}
+
 func TestPasswordEntry_NewlineIgnored(t *testing.T) {
 	entry := widget.NewPasswordEntry()
 	entry.SetText("test")
@@ -1568,6 +1827,8 @@ func TestPasswordEntry_Placeholder(t *testing.T) {
 	entry, window := setupPasswordTest(t)
 	defer teardownImageTest(window)
 	c := window.Canvas()
+
+	test.AssertRendersToMarkup(t, "password_entry/initial.xml", window.Canvas())
 
 	entry.SetPlaceHolder("Password")
 	test.AssertRendersToMarkup(t, "password_entry/placeholder_initial.xml", c)
@@ -1612,7 +1873,7 @@ func TestPasswordEntry_Reveal(t *testing.T) {
 		assert.Equal(t, entry, c.Focused())
 
 		// tap on action icon
-		tapPos := fyne.NewPos(140-theme.Padding()*2-theme.IconInlineSize()/2, 10+entry.Size().Height/2)
+		tapPos := fyne.NewPos(140-theme.InnerPadding()-theme.IconInlineSize()/2, 10+entry.Size().Height/2)
 		test.TapCanvas(c, tapPos)
 		assert.Equal(t, "Hié™שרה", entry.Text)
 		test.AssertRendersToMarkup(t, "password_entry/revealed.xml", c)
@@ -1659,6 +1920,38 @@ func TestSingleLineEntry_NewlineIgnored(t *testing.T) {
 	entry.SetText("test")
 
 	checkNewlineIgnored(t, entry)
+}
+
+func TestSingleLineEntry_SelectionSubmitted(t *testing.T) {
+	entry := widget.NewEntry()
+	entry.SetText("abc")
+	assert.Equal(t, "", entry.SelectedText())
+	entry.TypedShortcut(&fyne.ShortcutSelectAll{})
+	assert.Equal(t, "abc", entry.SelectedText())
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
+	assert.Equal(t, entry.Text, "abc")
+}
+
+func TestMultiLineEntry_EnterWithSelection(t *testing.T) {
+	entry := widget.NewMultiLineEntry()
+	entry.SetText("abc")
+	assert.Equal(t, "", entry.SelectedText())
+	entry.TypedShortcut(&fyne.ShortcutSelectAll{})
+	assert.Equal(t, "abc", entry.SelectedText())
+	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEnter})
+	assert.Equal(t, entry.Text, "\n")
+}
+
+func TestEntry_CarriageReturn(t *testing.T) {
+	entry := widget.NewMultiLineEntry()
+	entry.Wrapping = fyne.TextWrapOff
+	entry.Scroll = container.ScrollNone
+	entry.SetText("\r\n\r")
+	w := test.NewWindow(entry)
+	w.Resize(fyne.NewSize(64, 64))
+	test.AssertImageMatches(t, "entry/carriage_return_empty.png", w.Canvas().Capture())
+	entry.SetText("\rH\re\rl\rl\ro\r\n\rW\ro\rr\rl\rd\r!\r")
+	test.AssertImageMatches(t, "entry/carriage_return_text.png", w.Canvas().Capture())
 }
 
 const (
@@ -1720,9 +2013,9 @@ func setupImageTest(t *testing.T, multiLine bool) (*widget.Entry, fyne.Window) {
 
 	var entry *widget.Entry
 	if multiLine {
-		entry = &widget.Entry{MultiLine: true, Wrapping: fyne.TextWrapWord}
+		entry = &widget.Entry{MultiLine: true, Wrapping: fyne.TextWrapWord, Scroll: container.ScrollNone}
 	} else {
-		entry = &widget.Entry{Wrapping: fyne.TextWrapOff}
+		entry = &widget.Entry{Wrapping: fyne.TextWrapOff, Scroll: container.ScrollNone}
 	}
 	w := test.NewWindow(entry)
 	w.Resize(fyne.NewSize(150, 200))
@@ -1752,8 +2045,6 @@ func setupPasswordTest(t *testing.T) (*widget.Entry, fyne.Window) {
 
 	entry.Resize(entry.MinSize().Max(fyne.NewSize(130, 0)))
 	entry.Move(fyne.NewPos(entryOffset, entryOffset))
-
-	test.AssertRendersToMarkup(t, "password_entry/initial.xml", w.Canvas())
 
 	return entry, w
 }
@@ -1791,4 +2082,51 @@ func teardownImageTest(w fyne.Window) {
 
 func waitForBinding() {
 	time.Sleep(time.Millisecond * 100) // data resolves on background thread
+}
+
+// clickCanvas is an analogue of test.TapCanvas that also sends MouseDown/MouseUp events
+func clickCanvas(c fyne.Canvas, pos fyne.Position) {
+	if o, p := findMouseable(c, pos); o != nil {
+		clickPrimary(c, o.(desktop.Mouseable), &fyne.PointEvent{AbsolutePosition: pos, Position: p})
+	}
+}
+
+func findMouseable(c fyne.Canvas, pos fyne.Position) (o fyne.CanvasObject, p fyne.Position) {
+	matches := func(object fyne.CanvasObject) bool {
+		_, ok := object.(desktop.Mouseable)
+		return ok
+	}
+	o, p, _ = driver.FindObjectAtPositionMatching(pos, matches, c.Overlays().Top(), c.Content())
+	return
+}
+
+func clickPrimary(c fyne.Canvas, obj desktop.Mouseable, ev *fyne.PointEvent) {
+	handleFocusOnTap(c, obj)
+	mouseEvent := &desktop.MouseEvent{
+		PointEvent: *ev,
+		Button:     desktop.MouseButtonPrimary,
+	}
+	obj.MouseDown(mouseEvent)
+	obj.MouseUp(mouseEvent)
+	if tap, ok := obj.(fyne.Tappable); ok {
+		tap.Tapped(ev)
+	}
+}
+
+func handleFocusOnTap(c fyne.Canvas, obj interface{}) {
+	if c == nil {
+		return
+	}
+	unfocus := true
+	if focus, ok := obj.(fyne.Focusable); ok {
+		if dis, ok := obj.(fyne.Disableable); !ok || !dis.Disabled() {
+			unfocus = false
+			if focus != c.Focused() {
+				unfocus = true
+			}
+		}
+	}
+	if unfocus {
+		c.Unfocus()
+	}
 }
